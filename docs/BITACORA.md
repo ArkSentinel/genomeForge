@@ -118,3 +118,25 @@ Este documento registra cronológicamente las decisiones de diseño, hitos de im
 * **Pruebas y Verificación:**
   * Compilación 100% limpia sin advertencias (`make build`).
   * Verificación interactiva de todas las pestañas comprobando que las métricas reflejan cálculos matemáticos y de hardware reales.
+
+---
+
+### [2026-09-04] — Entrada #006: Control de Versiones Git, Estrategia 1000 Genomas y Especificación Gemelo Digital Celular
+* **Objetivo:** Inicializar el repositorio Git con control de versiones atómico, documentar la estrategia de escalabilidad respecto al dataset masivo de 1000 Genomas y definir la arquitectura técnica para un Gemelo Digital de Células Vivas (*Whole-Cell Spatial Digital Twin*).
+* **Hitos Alcanzados:**
+  1. **Control de Versiones Git:**
+     * Inicialización del repositorio Git en la raíz del proyecto (`git init`).
+     * Limpieza y vendorización autónoma de `external/ftxui` para garantizar compilación offline reproducible.
+     * Primer commit formal (`50351ec`): *"feat: Initial commit of GenomeForge-TUI with Apple Silicon M4 acceleration"*.
+  2. **Estrategia de Datos: 1000 Genomas (Slices vs. Cohorte Completa):**
+     * Análisis del tamaño total del consorcio 1000 Genomas Phase 3 / NYGC (>15 TB raw, >800 GB VCFs comprimidos, 2.504 a 3.202 individuos).
+     * Definición del enfoque híbrido:
+       - **Modo Slice Local (Activo):** Extracción dirigida de genes críticos (*TP53*, *CDKN2A*) mediante `scripts/fetch_1000genomes_slice.sh` para evaluación clínica instantánea en RAM.
+       - **Modo Streaming Indexado (Escalable):** Consulta por coordenadas genómicas con índices `.tbi` (Tabix / BGZF) vía HTTP Range Requests contra AWS S3 (`https://s3.amazonaws.com/1000genomes`), permitiendo consultar cualquier locus sin descargar terabytes.
+  3. **Diseño de Arquitectura: Gemelo Digital de Células Vivas (*Living Cell Digital Twin*):**
+     * Modelo espacial basado en agentes (*Agent-Based Model*, ABM) simulando un cultivo celular virtual (placa de Petri con $N = 100$ a $10.000$ células).
+     * Máquina de estados del ciclo celular acoplada: $G_0 \to G_1 \to S \to G_2 \to M \to$ Mitosis o Apoptosis/Senescencia.
+     * Acoplamiento con el ODE Solver de Yamanaka y el Router MoE por cada célula individual para simular reprogramación iPSC heterogénea y escape oncogénico.
+     * Pipeline de física y colisiones mecánicas acelerado por Metal Compute en GPU (memoria unificada UMA).
+     * Renderizado en terminal mediante FTXUI Canvas utilizando caracteres Braille (`⣿`) y mapas de color en tiempo real.
+
