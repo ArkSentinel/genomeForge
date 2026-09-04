@@ -345,6 +345,51 @@ Este documento registra cronológicamente las decisiones de diseño, hitos de im
   * Validación de `make inspect` mostrando el nodo de oncología serializado correctamente.
   * Análisis de conformidad con script unicode certificando cero emojis en todo el repositorio.
 
+---
+
+### Entrada #012: Estudio Visual de Workflows Clínicos, Selector Modal Interactivo de Muestras VCF y Soporte Completo de Clics de Ratón (v2.3)
+* **Fecha:** 2026-09-04
+* **Objetivo:**
+  1. Superar la barrera técnica para personal médico y no computacional que no interactúa con archivos JSON o interfaces puramente de teclado, implementando un Estudio Visual de Workflows Clínicos en terminal.
+  2. Implementar un motor nativo de protocolos clínicos (`WorkflowEngine`) con 5 protocolos predefinidos guiados paso a paso:
+     - Oncología de Precisión Integral
+     - Rescate de Resistencia TKI (T790M)
+     - Letalidad Sintética (BRCA1 / PARP)
+     - Reprogramación y Rescate OSKM
+     - Cribado Diagnóstico Rápido (Express)
+  3. Proporcionar un renderizado gráfico de pipeline con tarjetas delimitadas, insignias de estado ([DONE], [ACTIVO], [ESPERA], [FALLIDO]) y conectores visuales de flujo (`|`, `V`).
+  4. Implementar un selector modal interactivo de archivos genómicos VCF (`show_file_picker_`), escaneando en tiempo real el directorio `data/`, conmutando muestras en caliente sin reiniciar la simulación.
+  5. Activar seguimiento nativo del ratón en FTXUI (`screen.TrackMouse(true)`) y capturar cajas de colisión (`ftxui::Box`) para habilitar clics en:
+     - Las 9 pestañas de la barra superior.
+     - Los botones de acción de Workflows ([ENTER], [S], [R], [F]).
+     - La lista de protocolos clínicos seleccionables.
+     - Las opciones y filas del modal selector de muestras VCF.
+     - Los botones farmacológicos de la Pestaña 8 (TKI, PARP, p53, Lavar, MTB).
+     - Los controles experimentales de la Pestaña 7 (Dox, CRISPR, UV, Sembrar, Aspirar, Zoom).
+     - La selección de variantes en la Pestaña 2 y guías gRNA en la Pestaña 5.
+     - Desplazamiento vertical de listas y zoom de microscopio mediante la rueda del ratón (WheelUp / WheelDown).
+  6. Crear la opción de línea de comandos `--test-workflows` y el objetivo `make test-workflows` para validación automatizada end-to-end de todos los protocolos en modo headless.
+  7. Garantizar la política de CERO EMOJIS en el código fuente, la documentación, los mensajes de consola y los commits.
+* **Componentes y Cambios Implementados:**
+  1. **Motor de Protocolos Clínicos (`include/workflow/workflow_engine.hpp` / `src/workflow/workflow_engine.cpp`):**
+     - Estructuras `StepType`, `StepStatus`, `WorkflowStep`, y clases `ClinicalWorkflow`, `WorkflowEngine`.
+     - 5 protocolos estandarizados cubriendo diagnóstico, cribado, dosificación in-silico, evaluación de clones de escape y exportación de reportes MTB.
+  2. **Selector Modal de Muestras VCF (`src/ui/tui_app.cpp`, `include/ui/tui_app.hpp`):**
+     - Métodos `open_file_picker()`, `close_file_picker()`, `scan_available_vcfs()`, `load_vcf_dynamic()`.
+     - Renderizado de ventana modal sobrepuesta con fondo opaco (`clear_under`) y navegación por teclado / clic.
+  3. **Pestaña 9: WORKFLOWS en la TUI (`src/ui/tui_app.cpp`):**
+     - Distribución en 3 paneles: Selector de protocolos (izq), Diagrama de flujo visual con flechas (centro), y Controles de ejecución con resumen clínico acumulado (der).
+  4. **Interacción Completa con Ratón:**
+     - Enlace de cajas `tab_boxes_[9]`, `btn_*`, `wf_preset_boxes_`, `file_picker_boxes_`, etc.
+     - Manejo de clics izquierdos (`Mouse::Left && Mouse::Pressed`) y eventos de rueda (`WheelUp` / `WheelDown`).
+  5. **CLI y Automatización (`src/main.cpp`, `Makefile`):**
+     - Agregada bandera `--test-workflows` y target `make test-workflows`.
+* **Validación y Pruebas:**
+  - Compilación limpia con Apple Clang C++20 (`make build`).
+  - Ejecución de `make test-workflows` con 100% de éxito en los 5 protocolos clínicos.
+  - Verificación de ejecución headless (`make headless`), generación de reportes (`make test-onco`) e inspección IPC (`make inspect`).
+  - Verificación con escáner unicode certificando 0 emojis en los archivos del proyecto.
+
 
 
 

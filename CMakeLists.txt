@@ -39,6 +39,7 @@ add_executable(genome_forge
     src/export/csv_exporter.cpp
     src/export/report_generator.cpp
     src/oncology/actionability_engine.cpp
+    src/workflow/workflow_engine.cpp
     src/ipc/state_inspector.cpp
     src/ui/tui_app.cpp
 )

@@ -42,29 +42,29 @@ El sistema fusiona bioinformática estructural, oncología traslacional, física
 GenomeForge-TUI está diseñado específicamente para exprimir las capacidades arquitectónicas del silicio de Apple:
 
 ```text
-+-----------------------------------------------------------------------------------------------+
-|                                    GenomeForge-TUI Core (C++20)                              |
-|           < 1: DASHBOARD > | < 2: VCF > | < 3: OSKM > | < 4: MoE > | < 5: CRISPR >           |
-|                     < 6: SYSTEM > | < 7: DIGITAL TWIN > | < 8: ONCO THERAPY >                 |
-+-----------------------------------------------┬-----------------------------------------------+
-                                                │
-         +--------------------------------------+--------------------------------------+
-         |                                      |                                      |
-         v                                      v                                      v
-+------------------+                  +------------------+                   +------------------+
-|   Yamanaka RK4   |                  |   Router MoE     |                   |  Biofísica 2D    |
-|   Continuo ODE   |                  |  Accelerate vDSP |                   |    Metal GPU     |
-|   Sistema 5x5    |                  |  Apple Matrix AMX|                   |  Kernel MSL M4   |
-+--------+---------+                  +--------+---------+                   +--------+---------+
-         |                                      |                                      |
-         +--------------------------------------+--------------------------------------+
-                                                │
-                                                v
-+-----------------------------------------------------------------------------------------------+
-|                           Unified Memory Architecture (Zero-Copy Buffer)                      |
-|                  GenomicVariant (alignas(64))  |  CellAgent (alignas(64))                     |
-|                                MTLResourceStorageModeShared                                   |
-+-----------------------------------------------------------------------------------------------+
++-------------------------------------------------------------------------------------------------------+
+|                                      GenomeForge-TUI Core (C++20)                                     |
+|           < 1: DASHBOARD > | < 2: VCF > | < 3: OSKM > | < 4: MoE > | < 5: CRISPR >                    |
+|           < 6: SYSTEM > | < 7: DIGITAL TWIN > | < 8: ONCO THERAPY > | < 9: WORKFLOWS >                 |
++---------------------------------------------------┬---------------------------------------------------+
+                                                    │
+             +--------------------------------------+--------------------------------------+
+             |                                      |                                      |
+             v                                      v                                      v
+    +------------------+                  +------------------+                   +------------------+
+    |   Yamanaka RK4   |                  |   Router MoE     |                   |  Biofísica 2D    |
+    |   Continuo ODE   |                  |  Accelerate vDSP |                   |    Metal GPU     |
+    |   Sistema 5x5    |                  |  Apple Matrix AMX|                   |  Kernel MSL M4   |
+    +--------+---------+                  +--------+---------+                   +--------+---------+
+             |                                      |                                      |
+             +--------------------------------------+--------------------------------------+
+                                                    │
+                                                    v
++-------------------------------------------------------------------------------------------------------+
+|                             Unified Memory Architecture (Zero-Copy Buffer)                            |
+|                    GenomicVariant (alignas(64))  |  CellAgent (alignas(64))                           |
+|                                  MTLResourceStorageModeShared                                         |
++-------------------------------------------------------------------------------------------------------+
 ```
 
 1. **Alineación a Líneas de Caché ARM64 (`alignas(64)`):**
@@ -81,26 +81,30 @@ GenomeForge-TUI está diseñado específicamente para exprimir las capacidades a
 
 ---
 
-## 3. Navegación y Procesos del Cyber-HUD (8 Pestañas)
+## 3. Navegación y Procesos del Cyber-HUD (9 Pestañas + Soporte Total de Ratón)
 
-La interfaz gráfica en terminal (construida con FTXUI en C++20) sigue una estética de Cyber-HUD científico, organizada en 8 pestañas a pantalla completa:
+La interfaz gráfica en terminal (construida con FTXUI en C++20) sigue una estética de Cyber-HUD científico, organizada en 9 pestañas a pantalla completa con soporte integral de clics de ratón, rueda de desplazamiento y selector modal de muestras:
 
 * **< 1: DASHBOARD >:**
   * Resumen clínico del paciente, diagnóstico genómico global, indicador holográfico del R-Score poblacional, confluencia del cultivo, estado de los inductores biológicos (Doxiciclina / CRISPR) y consola de eventos.
 * **< 2: VCF EXPLORER >:**
-  * Tabla exhaustiva de variantes del paciente y del consorcio 1000 Genomas. Coordenadas cromosómicas, alelos REF/ALT, profundidad de secuenciación (DP), frecuencia alélica poblacional (AF) y visualizador de la ventana flanqueante (+/- 20 pares de bases) con codones diana. Soporta conmutación en caliente de locus mediante la tecla `[L]`.
+  * Tabla exhaustiva de variantes del paciente y del consorcio 1000 Genomas. Coordenadas cromosómicas, alelos REF/ALT, profundidad de secuenciación (DP), frecuencia alélica poblacional (AF) y visualizador de la ventana flanqueante (+/- 20 pares de bases) con codones diana. Soporta selección de variantes por clic de ratón y conmutación en caliente de locus mediante la tecla `[L]`.
 * **< 3: YAMANAKA DYNAMICS >:**
   * Monitor de cinéticas de reprogramación continua mediante ecuaciones diferenciales ordinarias (ODEs). Expresión de factores OSKM (Oct4, Sox2, Klf4, c-Myc), barrera de senescencia, inestabilidad genómica acumulada, puntos de control de ciclo p53/p21 y gráfica sparkline histórica del R-Score.
 * **< 4: MoE ROUTER >:**
   * Arquitectura Mixture of Experts. Extracción de embedding genómico de 16 dimensiones, distribución de pesos Softmax en la Gating Network y activación proporcional sobre las 4 subredes biológicas. Telemetría comparada de latencia AMX/vDSP frente a Metal GPU.
 * **< 5: CRISPR STUDIO >:**
-  * Entorno de edición genómica dirigida. Escaneo de motivos PAM NGG en hebras forward y reverse, extracción de protospacers de 20 nt, scoring de corte on-target (heurística Rule Set 2 / Doench) y distancia de corte a la mutación. Control `[E]` para ejecutar reparación in-silico por homología (HDR) sustituyendo el codón mutado.
+  * Entorno de edición genómica dirigida. Escaneo de motivos PAM NGG en hebras forward y reverse, extracción de protospacers de 20 nt, scoring de corte on-target (heurística Rule Set 2 / Doench) y distancia de corte a la mutación. Selección interactiva de candidatos gRNA por clic y control `[E]` para ejecutar reparación in-silico por homología (HDR).
 * **< 6: SYSTEM & LOGS >:**
   * Diagnóstico en vivo de la plataforma Apple Silicon. Monitoreo individualizado por núcleo de CPU (P-Cores vs E-Cores), deslose de memoria unificada (activa, cableada, libre) y registro de auditoría del sistema.
 * **< 7: DIGITAL TWIN >:**
-  * Placa de Petri virtual en 2D interactiva. Renderizado citomorfológico de alta fidelidad en sub-píxeles Braille, censo celular en vivo, dinámica clonal, controlador de velocidad temporal multi-escala (*Time Warp*), panel de farmacodinamia activa y controles de inducción / rescate.
+  * Placa de Petri virtual en 2D interactiva. Renderizado citomorfológico de alta fidelidad en sub-píxeles Braille, censo celular en vivo, dinámica clonal, controlador de velocidad temporal multi-escala (*Time Warp*), panel de farmacodinamia activa y botones de acción clicables (Doxiciclina, CRISPR, UV, Sembrar, Aspirar, Zoom in/out/reset).
 * **< 8: ONCO THERAPY >:**
-  * Plataforma de Oncología de Precisión y Farmacogenómica. Matching automatizado de alteraciones patogénicas frente a fármacos dirigidos aprobados por la FDA y guías NCCN. Monitoreo de carga mutacional tumoral (TMB) para elegibilidad de inmunoterapia anti-PD-1, detección de mutaciones de resistencia secundaria (*EGFR* T790M contra Gefitinib), panel de control de dosificación farmacológica in-silico y exportador directo del reporte de Comité Molecular de Tumores (`[O]`).
+  * Plataforma de Oncología de Precisión y Farmacogenómica. Matching automatizado de alteraciones patogénicas frente a fármacos dirigidos aprobados por la FDA y guías NCCN. Monitoreo de carga mutacional tumoral (TMB) para elegibilidad de inmunoterapia anti-PD-1, detección de mutaciones de resistencia secundaria (*EGFR* T790M contra Gefitinib), botones interactivos de inoculación rápida por clic (`[T]` TKI, `[P]` PARP, `[K]` p53, `[W]` Lavar) y exportador directo del reporte de Comité Molecular de Tumores (`[O]`).
+* **< 9: WORKFLOWS (ESTUDIO CLÍNICO VISUAL) >:**
+  * Pipeline gráfico guiado sin código para personal médico y clínico. Presenta 5 protocolos estandarizados con diagrama de flujo visual (cajas con estado `[DONE]`, `[ACTIVO]`, `[ESPERA]`, `[FALLIDO]` unidas por flechas de flujo), controles de ejecución con clic o atajo (`[Enter]` Flujo Completo, `[S]` Paso a Paso, `[R]` Reiniciar, `[F]` Cambiar Muestra) y tarjeta de hallazgos clínicos acumulados en tiempo real.
+* **Selector Modal de Muestras VCF (`[F]`):**
+  * Ventana modal interactiva sobrepuesta en cualquier momento de la simulación. Escanea el almacenamiento local en busca de archivos `.vcf`, permitiendo al operador seleccionar y cargar perfiles de pacientes en caliente con un clic o con las flechas de navegación y Enter.
 
 ---
 
@@ -432,6 +436,15 @@ Al presionar la tecla `[X]` en la TUI o activar `--export-csv`, se generan en la
 1. `export_cell_census_<timestamp>.csv`: Confluencia, índice mitótico, recuento poblacional y R-Score medio en función del tiempo.
 2. `export_cell_agents_<timestamp>.csv`: Censo microscópico unicelular con coordenadas $(X, Y)$, velocidades $(V_x, V_y)$, fases del ciclo ($G_0, G_1, S, G_2, M$), fenotipo, estado de clivaje y nivel de $p_{53}$.
 3. `export_genomic_variants_<timestamp>.csv`: Catálogo de variantes del panel con alelos REF/ALT, profundidad $DP$, frecuencia $AF$ y scoring ClinVar.
+
+### 4. Automatización y Verificación de Workflows Clínicos
+Para auditar y validar los 5 protocolos clínicos de extremo a extremo sin interfaz gráfica:
+```bash
+make test-workflows
+# o directamente:
+./build/genome_forge --test-workflows
+```
+El motor ejecuta de forma secuencial la ingesta de muestras, diagnósticos moleculares, cribado de fármacos FDA Nivel 1, inoculación en el gemelo digital, simulación biofísica, verificación de resistencia clonal y emisión de reportes MTB en Markdown y JSON.
 
 ---
 

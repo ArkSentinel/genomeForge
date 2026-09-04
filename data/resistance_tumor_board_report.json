@@ -1,6 +1,6 @@
 {
   "report_type": "MOLECULAR_TUMOR_BOARD_SUMMARY",
-  "timestamp": "2026-09-04 13:34:48",
+  "timestamp": "2026-09-04 14:19:34",
   "sample_id": "PATIENT_ONCOLOGY_SAMPLE",
   "reference_genome": "GRCh38",
   "vcf_source": "data/sample_patient_resistance.vcf",
@@ -10,8 +10,8 @@
     "yamanaka_collisions": 1,
     "tmb_mut_per_mb": 5.00,
     "high_tmb": false,
-    "r_score": 0.5131,
-    "p53_integrity": 0.1000
+    "r_score": 0.9800,
+    "p53_integrity": 0.0407
   },
   "actionable_biomarkers": [
     {
@@ -64,9 +64,9 @@
     }
   ],
   "digital_twin_pharmacodynamics": {
-    "active_drug": "None (Vehicle Control)",
-    "dose_uM": 0.00,
-    "tumor_regression_percent": 0.0,
+    "active_drug": "Osimertinib (3rd-Gen EGFR TKI)",
+    "dose_uM": 2.00,
+    "tumor_regression_percent": 100.0,
     "resistant_cells_count": 0
   }
 }

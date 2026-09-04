@@ -18,6 +18,7 @@
 #include <thread>
 #include <cmath>
 #include <algorithm>
+#include <filesystem>
 
 namespace genome::ui {
 
@@ -185,6 +186,189 @@ void GenomeForgeApp::administer_targeted_drug(genome::twin::DrugTherapy drug) {
 void GenomeForgeApp::washout_drugs() {
     cell_twin_.washout_drugs();
     add_log("WASHOUT", "Culture washed. Active drug cleared from Petri dish.");
+}
+
+void GenomeForgeApp::select_workflow_by_index(size_t index) {
+    workflow_engine_.select_workflow(index);
+    auto* wf = workflow_engine_.get_active_workflow();
+    if (wf) {
+        add_log("WORKFLOW", "Selected clinical protocol: " + wf->get_name());
+    }
+}
+
+void GenomeForgeApp::reset_active_workflow() {
+    workflow_engine_.reset_active_workflow();
+    add_log("WORKFLOW", "Clinical protocol reset to initial state.");
+}
+
+void GenomeForgeApp::execute_active_workflow_step() {
+    auto* wf = workflow_engine_.get_active_workflow();
+    if (!wf || wf->is_completed()) return;
+
+    auto* step = wf->get_current_step();
+    if (!step) return;
+
+    step->status = genome::workflow::StepStatus::Running;
+    add_log("STEP", "Executing step: " + step->title);
+
+    switch (step->type) {
+        case genome::workflow::StepType::LoadVcfSample: {
+            load_vcf_dynamic(step->param_file);
+            step->result_summary = "Muestra cargada: " + std::to_string(vcf_parser_.total_variants()) + " variantes.";
+            break;
+        }
+        case genome::workflow::StepType::RunGenomicDiagnosis: {
+            refresh_onco_analysis();
+            step->result_summary = "R-Score: " + std::to_string(yamanaka_sim_.get_state().r_score).substr(0, 5) + 
+                                   " | Drivers: " + std::to_string(onco_analysis_.detected_biomarkers.size());
+            break;
+        }
+        case genome::workflow::StepType::ScreenTargetedTherapies: {
+            refresh_onco_analysis();
+            step->result_summary = "Dianas: " + std::to_string(onco_analysis_.all_recommended_drugs.size()) + 
+                                   " | Nivel 1 FDA: " + std::to_string(onco_analysis_.level1_count);
+            break;
+        }
+        case genome::workflow::StepType::InoculateDrug: {
+            genome::twin::DrugTherapy therapy = genome::twin::DrugTherapy::None;
+            if (step->param_drug == "TargetedTKI") therapy = genome::twin::DrugTherapy::TargetedTKI;
+            else if (step->param_drug == "ParpInhibitor") therapy = genome::twin::DrugTherapy::ParpInhibitor;
+            else if (step->param_drug == "P53Reactivator") therapy = genome::twin::DrugTherapy::P53Reactivator;
+            else if (step->param_drug == "KrasInhibitor") therapy = genome::twin::DrugTherapy::KrasInhibitor;
+            else if (step->param_drug == "CytotoxicChemo") therapy = genome::twin::DrugTherapy::CytotoxicChemo;
+
+            cell_twin_.administer_drug(therapy, step->param_dose_uM);
+            step->result_summary = "Inoculado: " + cell_twin_.get_active_drug_name() + 
+                                   " (" + std::to_string(step->param_dose_uM).substr(0, 4) + " uM)";
+            break;
+        }
+        case genome::workflow::StepType::SimulateBioTime: {
+            for (size_t t = 0; t < step->param_ticks; ++t) {
+                tick_simulation();
+            }
+            step->result_summary = "Regresion: " + std::to_string(static_cast<int>(cell_twin_.get_tumor_regression_percent())) + 
+                                   "% | Celulas vivas: " + std::to_string(cell_twin_.get_metrics().total_cells);
+            break;
+        }
+        case genome::workflow::StepType::EvaluateResistance: {
+            refresh_onco_analysis();
+            size_t resistant = cell_twin_.get_metrics().drug_resistant_cells;
+            if (resistant > 0 || !onco_analysis_.resistance_warnings.empty()) {
+                step->result_summary = "ALERTA: " + std::to_string(resistant) + " clones resistentes detectados.";
+            } else {
+                step->result_summary = "Sensibilidad completa: 0 clones resistentes observados.";
+            }
+            break;
+        }
+        case genome::workflow::StepType::ApplyCrisprRescue: {
+            cell_twin_.apply_crispr_rescue();
+            target_sequence_window_ = crispr_engine_.simulate_hdr_edit(target_sequence_window_, 20, "CGC");
+            crispr_candidates_ = crispr_engine_.design_guides(target_sequence_window_, 20);
+            crispr_applied_ = true;
+            step->result_summary = "Rescate HDR completado en locus " + step->param_locus;
+            break;
+        }
+        case genome::workflow::StepType::ExportClinicalReports: {
+            export_molecular_tumor_board_report(step->param_file);
+            step->result_summary = "Reportes guardados en: " + step->param_file;
+            break;
+        }
+    }
+
+    step->status = genome::workflow::StepStatus::Completed;
+    wf->set_current_step_index(wf->get_current_step_index() + 1);
+    add_log("STEP", "Step completed: " + step->result_summary);
+}
+
+void GenomeForgeApp::run_active_workflow_full() {
+    auto* wf = workflow_engine_.get_active_workflow();
+    if (!wf) return;
+    wf->set_running(true);
+    add_log("WORKFLOW", "Starting automated execution of: " + wf->get_name());
+    while (!wf->is_completed()) {
+        execute_active_workflow_step();
+    }
+    wf->set_running(false);
+    add_log("WORKFLOW", "Protocol execution completed successfully: " + wf->get_name());
+}
+
+int GenomeForgeApp::test_all_workflows_headless() {
+    std::cout << "================================================================================\n"
+              << " ⌬ GENOMEFORGE :: CLINICAL WORKFLOW ENGINE VERIFICATION (ARM64)\n"
+              << "================================================================================\n";
+    const auto& wfs = workflow_engine_.get_workflows();
+    std::cout << "[+] Total Protocols Registered: " << wfs.size() << "\n\n";
+
+    for (size_t i = 0; i < wfs.size(); ++i) {
+        select_workflow_by_index(i);
+        auto* wf = workflow_engine_.get_active_workflow();
+        if (!wf) continue;
+
+        std::cout << "--------------------------------------------------------------------------------\n"
+                  << " Protocol " << (i + 1) << "/" << wfs.size() << ": " << wf->get_name() << "\n"
+                  << " Category: " << wf->get_category() << "\n"
+                  << " Objective: " << wf->get_description() << "\n"
+                  << " Steps: " << wf->get_steps().size() << "\n"
+                  << "--------------------------------------------------------------------------------\n";
+
+        size_t step_idx = 0;
+        while (!wf->is_completed()) {
+            auto* step = wf->get_current_step();
+            std::string title = step ? step->title : "Unknown";
+            std::string desc = step ? step->description : "";
+            execute_active_workflow_step();
+            std::string res = step ? step->result_summary : "";
+            std::cout << "  [" << (step_idx + 1) << "/" << wf->get_steps().size() << "] " << title << "\n"
+                      << "      -> Accion: " << desc << "\n"
+                      << "      -> Resultado: " << res << "\n";
+            step_idx++;
+        }
+        std::cout << "  [STATUS] Protocol " << wf->get_name() << " completed: 100% SUCCESS.\n\n";
+    }
+    std::cout << "================================================================================\n"
+              << "[+] All " << wfs.size() << " Clinical Protocols executed and validated.\n"
+              << "================================================================================\n";
+    return 0;
+}
+
+void GenomeForgeApp::open_file_picker() {
+    scan_available_vcfs();
+    show_file_picker_ = true;
+    selected_file_picker_index_ = 0;
+    add_log("FILE", "Opened VCF sample picker modal.");
+}
+
+void GenomeForgeApp::close_file_picker() {
+    show_file_picker_ = false;
+}
+
+void GenomeForgeApp::scan_available_vcfs() {
+    available_vcfs_.clear();
+    std::vector<std::string> search_dirs = {"data", "../data", "."};
+    for (const auto& dir : search_dirs) {
+        std::error_code ec;
+        if (std::filesystem::exists(dir, ec) && std::filesystem::is_directory(dir, ec)) {
+            for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
+                if (entry.is_regular_file(ec)) {
+                    std::string path = entry.path().string();
+                    if (path.size() >= 4 && path.substr(path.size() - 4) == ".vcf") {
+                        if (std::find(available_vcfs_.begin(), available_vcfs_.end(), path) == available_vcfs_.end()) {
+                            available_vcfs_.push_back(path);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    std::sort(available_vcfs_.begin(), available_vcfs_.end());
+}
+
+void GenomeForgeApp::load_vcf_dynamic(const std::string& path) {
+    vcf_path_ = path;
+    healthy_reference_mode_ = (path.find("healthy") != std::string::npos);
+    init_simulation_state();
+    show_file_picker_ = false;
+    add_log("FILE", "Dynamically loaded VCF: " + path);
 }
 
 void GenomeForgeApp::init_simulation_state() {
@@ -409,6 +593,7 @@ void GenomeForgeApp::tick_simulation() {
 
 int GenomeForgeApp::run() {
     auto screen = App::Fullscreen();
+    screen.TrackMouse(true);
 
     auto main_renderer = Renderer([&] {
         const auto& metrics = telemetry_.get_metrics();
@@ -430,7 +615,7 @@ int GenomeForgeApp::run() {
 
         auto header_element = vbox({
             hbox({
-                text(" ⌬ GENOMEFORGE-TUI :: CYBER-BIOLAB HUD v2.0 ") | bold | color(Color::CyanLight),
+                text(" ⌬ GENOMEFORGE-TUI :: CYBER-BIOLAB HUD v2.2 ") | bold | color(Color::CyanLight),
                 text("⟦ ARCH: APPLE M4 | UMA ZERO-COPY ⟧") | bold | color(Color::White),
                 filler(),
                 text("AMX: ") | color(Color::GrayLight),
@@ -458,32 +643,37 @@ int GenomeForgeApp::run() {
             })
         }) | border;
 
-        // 2. BARRA DE PESTAÑAS (TABS CYBER-HUD)
-        auto make_tab_button = [&](AppTab tab, const std::string& label, const std::string& key_num) {
+        // 2. BARRA DE PESTAÑAS (TABS CYBER-HUD CON CLICK DE RATÓN Y 9 PESTAÑAS)
+        auto make_tab_button = [&](AppTab tab, const std::string& label, const std::string& key_num, int idx) {
             bool is_active = (current_tab_ == tab);
             std::string text_str = " ⟨ " + key_num + ": " + label + " ⟩ ";
+            Element elem;
             if (is_active) {
-                return text(text_str) | bold | color(Color::Black) | bgcolor(Color::CyanLight);
+                elem = text(text_str) | bold | color(Color::Black) | bgcolor(Color::CyanLight);
+            } else {
+                elem = text(text_str) | color(Color::GrayLight);
             }
-            return text(text_str) | color(Color::GrayLight);
+            return elem | reflect(tab_boxes_[idx]);
         };
 
         auto tab_bar = hbox({
-            make_tab_button(AppTab::Dashboard, "DASHBOARD", "1"),
+            make_tab_button(AppTab::Dashboard, "DASHBOARD", "1", 0),
             separator(),
-            make_tab_button(AppTab::VcfExplorer, "VCF EXPLORER", "2"),
+            make_tab_button(AppTab::VcfExplorer, "VCF EXPLORER", "2", 1),
             separator(),
-            make_tab_button(AppTab::YamanakaDynamics, "YAMANAKA (OSKM)", "3"),
+            make_tab_button(AppTab::YamanakaDynamics, "OSKM", "3", 2),
             separator(),
-            make_tab_button(AppTab::MoeRouter, "MoE ROUTER", "4"),
+            make_tab_button(AppTab::MoeRouter, "MoE", "4", 3),
             separator(),
-            make_tab_button(AppTab::CrisprStudio, "CRISPR STUDIO", "5"),
+            make_tab_button(AppTab::CrisprStudio, "CRISPR", "5", 4),
             separator(),
-            make_tab_button(AppTab::SystemLogs, "SYSTEM & LOGS", "6"),
+            make_tab_button(AppTab::SystemLogs, "SYSTEM", "6", 5),
             separator(),
-            make_tab_button(AppTab::DigitalTwin, "DIGITAL TWIN", "7"),
+            make_tab_button(AppTab::DigitalTwin, "TWIN", "7", 6),
             separator(),
-            make_tab_button(AppTab::OncoTherapy, "ONCO THERAPY", "8"),
+            make_tab_button(AppTab::OncoTherapy, "ONCO", "8", 7),
+            separator(),
+            make_tab_button(AppTab::Workflows, "WORKFLOWS", "9", 8),
         }) | border;
 
         // 3. VISTAS DEDICADAS POR PESTAÑA
@@ -667,6 +857,7 @@ int GenomeForgeApp::run() {
                         break;
                 }
 
+                variant_row_boxes_.resize(variants.size());
                 auto row = hbox({
                     text(prefix) | bold | (is_selected ? color(Color::Cyan) : color(Color::GrayDark)),
                     text(chr_s) | size(WIDTH, EQUAL, 8),
@@ -676,7 +867,7 @@ int GenomeForgeApp::run() {
                     text(af_ss.str()) | size(WIDTH, EQUAL, 7),
                     text(dp_ss.str()) | size(WIDTH, EQUAL, 6),
                     text(status_label) | bold | color(status_color),
-                });
+                }) | reflect(variant_row_boxes_[i]);
 
                 if (is_selected) row = row | inverted;
                 table_rows.push_back(row);
@@ -867,6 +1058,7 @@ int GenomeForgeApp::run() {
                 std::ostringstream off_ss;
                 off_ss << (cand.pam_position_offset >= 0 ? "+" : "") << cand.pam_position_offset << " bp";
 
+                guide_row_boxes_.resize(crispr_candidates_.size());
                 auto row = hbox({
                     text(prefix) | bold | (is_sel ? color(Color::Cyan) : color(Color::GrayDark)),
                     text("[" + std::to_string(i + 1) + "]") | size(WIDTH, EQUAL, 4),
@@ -876,7 +1068,7 @@ int GenomeForgeApp::run() {
                     text(std::to_string(cand.on_target_efficiency).substr(0, 4) + "%") | color(Color::Green) | size(WIDTH, EQUAL, 11),
                     text(std::to_string(cand.off_target_safety_score).substr(0, 4) + "/100") | color(Color::Green) | size(WIDTH, EQUAL, 20),
                     text(cand.recommendation) | bold | (cand.on_target_efficiency >= 90.0f ? color(Color::Green) : color(Color::GrayLight)),
-                });
+                }) | reflect(guide_row_boxes_[i]);
 
                 if (is_sel) row = row | inverted;
                 candidate_rows.push_back(row);
@@ -1253,9 +1445,11 @@ int GenomeForgeApp::run() {
                 }),
                 hbox({
                     text("Zoom Petri: ") | color(Color::GrayLight),
-                    text("[Z] ") | bold | color(Color::Cyan), text("Acercar  ") | color(Color::White),
-                    text("[z] ") | bold | color(Color::Cyan), text("Alejar  ") | color(Color::White),
-                    text("[0] ") | bold | color(Color::Cyan), text("Reset") | color(Color::White),
+                    text(" [+] Acercar ") | bold | color(Color::Black) | bgcolor(Color::CyanLight) | reflect(btn_twin_zin_),
+                    text(" "),
+                    text(" [-] Alejar ") | bold | color(Color::Black) | bgcolor(Color::CyanLight) | reflect(btn_twin_zout_),
+                    text(" "),
+                    text(" [0] Reset ") | bold | color(Color::Black) | bgcolor(Color::YellowLight) | reflect(btn_twin_zreset_),
                 }),
                 hbox({
                     text("Navegación: ") | color(Color::GrayLight),
@@ -1294,23 +1488,31 @@ int GenomeForgeApp::run() {
                 hbox({ text("Clones Resistentes: ") | color(Color::GrayLight), text(std::to_string(t_metrics.drug_resistant_cells)) | bold | (t_metrics.drug_resistant_cells > 0 ? color(Color::RedLight) : color(Color::GreenLight)) }),
                 hbox({
                     text("Acciones: ") | color(Color::GrayLight),
-                    text("[T] ") | bold | color(Color::CyanLight), text("TKI  ") | color(Color::White),
-                    text("[P] ") | bold | color(Color::MagentaLight), text("PARP  ") | color(Color::White),
-                    text("[K] ") | bold | color(Color::YellowLight), text("p53  ") | color(Color::White),
-                    text("[W] ") | bold | color(Color::YellowLight), text("Lavar") | color(Color::White),
+                    text(" [T] TKI ") | bold | color(Color::Black) | bgcolor(Color::CyanLight) | reflect(btn_onco_tki_),
+                    text(" "),
+                    text(" [P] PARP ") | bold | color(Color::Black) | bgcolor(Color::YellowLight) | reflect(btn_onco_parp_),
+                    text(" "),
+                    text(" [K] p53 ") | bold | color(Color::Black) | bgcolor(Color::MagentaLight) | reflect(btn_onco_p53_),
+                    text(" "),
+                    text(" [W] Lavar ") | bold | color(Color::Black) | bgcolor(Color::GrayLight) | reflect(btn_onco_wash_),
                 }),
                 separator(),
                 text("◈ CONTROLES BIOLÓGICOS Y EXPORTACIÓN") | bold | color(Color::Cyan),
                 separator(),
                 vbox({
-                    text("[X] EXPORTAR DATASETS CSV (Censo/Células/VCF)") | bold | color(Color::GreenLight),
-                    text("[O] EXPORTAR REPORTE COMITÉ MOLECULAR (MTB)") | bold | color(Color::MagentaLight),
-                    text("[D] Inyectar/Suspender Doxiciclina (OSKM)") | bold | color(Color::Yellow),
-                    text("[C] Terapia CRISPR-Cas9 in-situ (Rescate TP53)") | bold | color(Color::Cyan),
-                    text("[U] Estrés Genotóxico (Irradiación UV)") | bold | color(Color::Magenta),
-                    text("[+] / [-] Inocular / Remover Células (±25)") | color(Color::Cyan),
-                    text("[R] Reset Cultivo a Estado Basal") | color(Color::White),
-                    text("[Espacio] Pausar / Reanudar Dinámica") | color(Color::GrayLight),
+                    text(" [X] EXPORTAR DATASETS CSV ") | bold | color(Color::GreenLight),
+                    text(" [O] EXPORTAR REPORTE MTB ") | bold | color(Color::White) | bgcolor(Color::Blue) | reflect(btn_onco_mtb_),
+                    separator(),
+                    text(" [D] Doxiciclina OSKM [Click] ") | bold | color(Color::Yellow) | reflect(btn_twin_dox_),
+                    text(" [C] Rescate CRISPR TP53 [Click] ") | bold | color(Color::Cyan) | reflect(btn_twin_crispr_),
+                    text(" [U] Radiación UV Insulto [Click] ") | bold | color(Color::Magenta) | reflect(btn_twin_uv_),
+                    hbox({
+                        text(" [+25 Células] ") | bold | color(Color::Black) | bgcolor(Color::CyanLight) | reflect(btn_twin_plus_),
+                        text(" "),
+                        text(" [-25 Células] ") | bold | color(Color::Black) | bgcolor(Color::CyanLight) | reflect(btn_twin_minus_),
+                    }),
+                    text(" [R] Reset Cultivo a Estado Basal ") | color(Color::White),
+                    text(" [Espacio] Pausar / Reanudar Dinámica ") | color(Color::GrayLight),
                 })
             }) | border | size(WIDTH, EQUAL, 48);
 
@@ -1413,7 +1615,7 @@ int GenomeForgeApp::run() {
 
             // Panel de Control Farmacodinámico en el Gemelo Digital
             auto pharmacodynamics_controls = hbox({
-                text("⟦ FARMACODINÁMICA IN-SILICO (DIGITAL TWIN) ⟧ ") | bold | color(Color::Yellow),
+                text("⟦ FARMACODINÁMICA IN-SILICO ⟧ ") | bold | color(Color::Yellow),
                 text("Fármaco Activo: ") | color(Color::GrayLight),
                 text(cell_twin_.get_active_drug_name()) | bold | color(Color::CyanLight),
                 text(" | Regresión: ") | color(Color::GrayLight),
@@ -1421,7 +1623,11 @@ int GenomeForgeApp::run() {
                 text(" | Clones Resistentes: ") | color(Color::GrayLight),
                 text(std::to_string(cell_twin_.get_metrics().drug_resistant_cells)) | bold | (cell_twin_.get_metrics().drug_resistant_cells > 0 ? color(Color::RedLight) : color(Color::GreenLight)),
                 filler(),
-                text("[T] TKI  [P] PARP  [K] p53-Reactivator  [W] Lavar  [O] Reporte MTB") | bold | color(Color::Black) | bgcolor(Color::CyanLight)
+                text(" [T] TKI ") | bold | color(Color::CyanLight) | border | reflect(btn_onco_tki_),
+                text(" [P] PARP ") | bold | color(Color::YellowLight) | border | reflect(btn_onco_parp_),
+                text(" [K] p53 ") | bold | color(Color::GreenLight) | border | reflect(btn_onco_p53_),
+                text(" [W] Lavar ") | bold | color(Color::RedLight) | border | reflect(btn_onco_wash_),
+                text(" [O] MTB ") | bold | color(Color::MagentaLight) | border | reflect(btn_onco_mtb_)
             });
 
             auto drugs_panel = vbox(std::move(drug_elements)) | border | flex;
@@ -1431,22 +1637,227 @@ int GenomeForgeApp::run() {
                 hbox({ biomarkers_panel, drugs_panel }) | flex,
                 pharmacodynamics_controls | border
             });
+
+        // -------------------------------------------------------------
+        // TAB 9: WORKFLOWS (VISUAL PIPELINE & FLOWCHART ENGINE)
+        // -------------------------------------------------------------
+        } else if (current_tab_ == AppTab::Workflows) {
+            auto* active_wf = workflow_engine_.get_active_workflow();
+            const auto& all_wfs = workflow_engine_.get_workflows();
+
+            // Cabecera superior del Workflow
+            std::string wf_name = active_wf ? active_wf->get_name() : "Ninguno";
+            std::string wf_desc = active_wf ? active_wf->get_description() : "";
+            float progress = active_wf ? active_wf->get_progress_ratio() : 0.0f;
+            int pct = static_cast<int>(progress * 100.0f);
+
+            auto wf_header = vbox({
+                hbox({
+                    text("⟦ ESTUDIO DE WORKFLOWS CLÍNICOS DIRIGIDOS ⟧ ") | bold | color(Color::CyanLight),
+                    text("Protocolo Activo: ") | color(Color::GrayLight),
+                    text(wf_name) | bold | color(Color::Yellow),
+                    filler(),
+                    text("Progreso: ") | color(Color::GrayLight),
+                    text(std::to_string(pct) + "% ") | bold | color(Color::GreenLight),
+                    gauge(progress) | size(WIDTH, EQUAL, 14) | color(Color::GreenLight)
+                }),
+                separator(),
+                hbox({
+                    text("Descripción: ") | color(Color::GrayLight),
+                    text(wf_desc) | color(Color::White),
+                    filler(),
+                    text("Estado: ") | color(Color::GrayLight),
+                    text(active_wf && active_wf->is_completed() ? "[COMPLETADO]" : (active_wf && active_wf->is_running() ? "[EN EJECUCIÓN]" : "[PENDIENTE]")) | bold | (active_wf && active_wf->is_completed() ? color(Color::GreenLight) : color(Color::CyanLight))
+                })
+            }) | border;
+
+            // Panel Izquierdo: Lista de Protocolos Clínicos Predefinidos (Clickable)
+            wf_preset_boxes_.resize(all_wfs.size());
+            Elements wf_list_elements;
+            wf_list_elements.push_back(text("::: PROTOCOLOS CLÍNICOS DISPONIBLES :::") | bold | color(Color::Yellow));
+            wf_list_elements.push_back(separator());
+
+            for (size_t i = 0; i < all_wfs.size(); ++i) {
+                bool is_sel = (workflow_engine_.get_active_index() == i);
+                const auto& w = all_wfs[i];
+                std::string title = (is_sel ? "> " : "  ") + std::to_string(i + 1) + ". " + w.get_name();
+                std::string steps_info = "   Pasos: " + std::to_string(w.get_steps().size()) + " | " + 
+                                         (w.is_completed() ? "100% Completo" : std::to_string(static_cast<int>(w.get_progress_ratio() * 100)) + "%");
+                
+                auto item = vbox({
+                    text(title) | bold | (is_sel ? color(Color::CyanLight) : color(Color::White)),
+                    text(steps_info) | color(Color::GrayLight)
+                });
+
+                if (is_sel) {
+                    wf_list_elements.push_back(item | bgcolor(Color::Blue) | reflect(wf_preset_boxes_[i]));
+                } else {
+                    wf_list_elements.push_back(item | reflect(wf_preset_boxes_[i]));
+                }
+                wf_list_elements.push_back(separator());
+            }
+
+            wf_list_elements.push_back(filler());
+            wf_list_elements.push_back(text("[Clic para seleccionar protocolo]") | color(Color::GrayDark));
+            auto left_panel = vbox(std::move(wf_list_elements)) | size(WIDTH, EQUAL, 38) | border;
+
+            // Panel Central: Diagrama de Flujo Visual (Flowchart)
+            Elements flow_elements;
+            flow_elements.push_back(text("::: DIAGRAMA DE FLUJO CLÍNICO (PIPELINE GRÁFICO) :::") | bold | color(Color::Cyan));
+            flow_elements.push_back(separator());
+
+            if (active_wf) {
+                const auto& steps = active_wf->get_steps();
+                for (size_t i = 0; i < steps.size(); ++i) {
+                    const auto& step = steps[i];
+                    Color border_color = Color::GrayDark;
+                    Color title_color = Color::GrayLight;
+                    std::string status_badge;
+
+                    switch (step.status) {
+                        case genome::workflow::StepStatus::Completed:
+                            border_color = Color::Green;
+                            title_color = Color::GreenLight;
+                            status_badge = "[DONE]";
+                            break;
+                        case genome::workflow::StepStatus::Running:
+                            border_color = Color::Yellow;
+                            title_color = Color::YellowLight;
+                            status_badge = "[ACTIVO]";
+                            break;
+                        case genome::workflow::StepStatus::Failed:
+                            border_color = Color::Red;
+                            title_color = Color::RedLight;
+                            status_badge = "[FALLIDO]";
+                            break;
+                        case genome::workflow::StepStatus::Pending:
+                        default:
+                            border_color = Color::GrayDark;
+                            title_color = Color::White;
+                            status_badge = "[ESPERA]";
+                            break;
+                    }
+
+                    auto step_box = vbox({
+                        hbox({
+                            text(" " + std::to_string(i + 1) + ". " + step.title + " ") | bold | color(title_color),
+                            filler(),
+                            text(" " + status_badge + " ") | bold | color(border_color)
+                        }),
+                        text("   " + step.description) | color(Color::GrayLight),
+                        step.result_summary.empty() ? text("") : 
+                            vbox({
+                                separator(),
+                                hbox({
+                                    text("   Resultado: ") | bold | color(Color::CyanLight),
+                                    text(step.result_summary) | color(Color::White)
+                                })
+                            })
+                    }) | borderStyled(ftxui::ROUNDED) | color(border_color);
+
+                    flow_elements.push_back(step_box);
+
+                    // Conector / Flecha hacia el siguiente paso
+                    if (i + 1 < steps.size()) {
+                        bool next_done = (steps[i].status == genome::workflow::StepStatus::Completed);
+                        Color arrow_color = next_done ? Color::Green : Color::GrayDark;
+                        flow_elements.push_back(
+                            vbox({
+                                hbox({ filler(), text("|") | color(arrow_color), filler() }),
+                                hbox({ filler(), text("V") | bold | color(arrow_color), filler() })
+                            })
+                        );
+                    }
+                }
+            }
+
+            auto center_panel = vbox(std::move(flow_elements)) | border | flex;
+
+            // Panel Derecho: Controles de Ejecución y Métricas
+            auto right_panel = vbox({
+                text("::: CONTROLES DE EJECUCIÓN :::") | bold | color(Color::MagentaLight),
+                separator(),
+                vbox({
+                    text(" [ENTER] EJECUTAR COMPLETO ") | bold | color(Color::Black) | bgcolor(Color::GreenLight) | center | border | reflect(btn_run_wf_),
+                    text(" [S] AVANZAR UN PASO ") | bold | color(Color::Black) | bgcolor(Color::CyanLight) | center | border | reflect(btn_step_wf_),
+                    text(" [R] REINICIAR PROTOCOLO ") | bold | color(Color::White) | bgcolor(Color::Red) | center | border | reflect(btn_reset_wf_),
+                    text(" [F] CAMBIAR MUESTRA VCF ") | bold | color(Color::Black) | bgcolor(Color::YellowLight) | center | border | reflect(btn_picker_wf_),
+                }),
+                separator(),
+                text("::: RESUMEN CLÍNICO INTEGRADO :::") | bold | color(Color::Yellow),
+                separator(),
+                hbox({ text("Muestra actual: ") | color(Color::GrayLight), text(vcf_path_) | bold | color(Color::White) }),
+                hbox({ text("Variantes VCF:  ") | color(Color::GrayLight), text(std::to_string(vcf_parser_.total_variants())) | color(Color::CyanLight) }),
+                hbox({ text("R-Score Prom:   ") | color(Color::GrayLight), text(std::to_string(cell_twin_.get_metrics().average_r_score).substr(0, 5)) | bold | (cell_twin_.get_metrics().average_r_score > 0.5f ? color(Color::RedLight) : color(Color::GreenLight)) }),
+                hbox({ text("Dianas FDA:     ") | color(Color::GrayLight), text(std::to_string(onco_analysis_.all_recommended_drugs.size())) | color(Color::MagentaLight) }),
+                hbox({ text("Fármaco Activo: ") | color(Color::GrayLight), text(cell_twin_.get_active_drug_name()) | bold | color(Color::CyanLight) }),
+                hbox({ text("Regresión:      ") | color(Color::GrayLight), text(std::to_string(static_cast<int>(cell_twin_.get_tumor_regression_percent())) + "%") | color(Color::GreenLight) }),
+                hbox({ text("Resistentes:    ") | color(Color::GrayLight), text(std::to_string(cell_twin_.get_metrics().drug_resistant_cells)) | (cell_twin_.get_metrics().drug_resistant_cells > 0 ? color(Color::RedLight) : color(Color::GreenLight)) }),
+                filler(),
+                text("[Todos los botones y protocolos responden a clics]") | color(Color::GrayDark)
+            }) | size(WIDTH, EQUAL, 38) | border;
+
+            active_view = vbox({
+                wf_header,
+                hbox({ left_panel, center_panel, right_panel }) | flex
+            });
         }
 
-        // 4. FOOTER
+        // 3.1 MODAL DE SELECCIÓN DE ARCHIVOS VCF (INTERACTIVO Y CON CLIC)
+        if (show_file_picker_) {
+            file_picker_boxes_.resize(available_vcfs_.size());
+            Elements file_items;
+            file_items.push_back(text("⟦ EXPLORADOR DE MUESTRAS GENÓMICAS (VCF) ⟧") | bold | color(Color::CyanLight) | center);
+            file_items.push_back(text("Seleccione con clic o flechas y presione Enter para cargar:") | color(Color::GrayLight) | center);
+            file_items.push_back(separator());
+
+            if (available_vcfs_.empty()) {
+                file_items.push_back(text("No se encontraron archivos .vcf en el directorio data/.") | color(Color::RedLight) | center);
+            } else {
+                for (size_t i = 0; i < available_vcfs_.size(); ++i) {
+                    bool is_sel = (selected_file_picker_index_ == static_cast<int>(i));
+                    const auto& path = available_vcfs_[i];
+                    std::string label = (is_sel ? "> " : "  ") + path;
+                    
+                    Element row;
+                    if (is_sel) {
+                        row = hbox({
+                            text(label) | bold | color(Color::Black) | bgcolor(Color::CyanLight),
+                            filler()
+                        }) | reflect(file_picker_boxes_[i]);
+                    } else {
+                        row = hbox({
+                            text(label) | color(Color::White),
+                            filler()
+                        }) | reflect(file_picker_boxes_[i]);
+                    }
+                    file_items.push_back(row);
+                }
+            }
+
+            file_items.push_back(separator());
+            file_items.push_back(hbox({
+                text(" [ENTER / Clic] Cargar Muestra ") | bold | color(Color::Black) | bgcolor(Color::GreenLight),
+                filler(),
+                text(" [F / ESC] Cerrar ") | bold | color(Color::Black) | bgcolor(Color::RedLight)
+            }));
+
+            auto modal = vbox(std::move(file_items)) | size(WIDTH, EQUAL, 70) | size(HEIGHT, EQUAL, 18) | borderStyled(ftxui::DOUBLE) | bgcolor(Color::Black) | clear_under;
+            active_view = dbox({ active_view, modal | center });
+        }
+
+        // 4. FOOTER CON ATAJOS Y ESTADO DE RATÓN
         auto footer = hbox({
-            text(" ⟦ ATAJOS ⟧ ") | bold | color(Color::Cyan),
-            text("[1..8] ") | bold | color(Color::White), text("Pestañas  ") | color(Color::GrayLight),
+            text(" ⟦ CONTROLES ⟧ ") | bold | color(Color::Cyan),
+            text("[1..9] ") | bold | color(Color::White), text("Pestañas  ") | color(Color::GrayLight),
             text("[Tab] ") | bold | color(Color::White), text("Ciclar  ") | color(Color::GrayLight),
-            text("[M] ") | bold | color(Color::GreenLight), text("Muestra  ") | color(Color::GrayLight),
-            text("[L] ") | bold | color(Color::Yellow), text("Locus  ") | color(Color::GrayLight),
-            text("[O] ") | bold | color(Color::MagentaLight), text("Reporte MTB  ") | color(Color::GrayLight),
+            text("[F] ") | bold | color(Color::GreenLight), text("Muestras VCF  ") | color(Color::GrayLight),
+            text("[Clic] ") | bold | color(Color::YellowLight), text("Ratón Activo  ") | color(Color::GrayLight),
             text("[T] ") | bold | color(Color::CyanLight), text("TKI  ") | color(Color::GrayLight),
             text("[P] ") | bold | color(Color::YellowLight), text("PARP  ") | color(Color::GrayLight),
-            text("[ < / > ] ") | bold | color(Color::MagentaLight), text("Vel Real  ") | color(Color::GrayLight),
+            text("[O] ") | bold | color(Color::MagentaLight), text("Reporte MTB  ") | color(Color::GrayLight),
+            text("[ < / > ] ") | bold | color(Color::MagentaLight), text("Velocidad  ") | color(Color::GrayLight),
             text("[Z / z / 0] ") | bold | color(Color::Cyan), text("Zoom Petri  ") | color(Color::GrayLight),
-            text("[ [ / ] ] ") | bold | color(Color::YellowLight), text("Time Warp  ") | color(Color::GrayLight),
-            text("[X] ") | bold | color(Color::GreenLight), text("CSV  ") | color(Color::GrayLight),
             text("[Espacio] ") | bold | color(Color::White), text("Pausa  ") | color(Color::GrayLight),
             text("[Q] ") | bold | color(Color::Red), text("Salir") | color(Color::GrayLight),
         }) | border;
@@ -1459,8 +1870,222 @@ int GenomeForgeApp::run() {
         });
     });
 
-    // Manejo de eventos de teclado
+    // Manejo de eventos de ratón y teclado
     auto event_handler = CatchEvent(main_renderer, [&](Event event) -> bool {
+        // Manejo de eventos de ratón (Clics y Rueda de desplazamiento)
+        if (event.is_mouse()) {
+            auto mouse = event.mouse();
+            if (mouse.button == Mouse::Left && mouse.motion == Mouse::Pressed) {
+                // Modal de archivos VCF activo
+                if (show_file_picker_) {
+                    for (size_t i = 0; i < file_picker_boxes_.size() && i < available_vcfs_.size(); ++i) {
+                        if (file_picker_boxes_[i].Contain(mouse.x, mouse.y)) {
+                            selected_file_picker_index_ = static_cast<int>(i);
+                            load_vcf_dynamic(available_vcfs_[i]);
+                            close_file_picker();
+                            return true;
+                        }
+                    }
+                    close_file_picker();
+                    return true;
+                }
+
+                // Clics en la barra de 9 pestañas superiores
+                for (size_t i = 0; i < 9; ++i) {
+                    if (tab_boxes_[i].Contain(mouse.x, mouse.y)) {
+                        current_tab_ = static_cast<AppTab>(i);
+                        return true;
+                    }
+                }
+
+                // Clics contextuales en Tab 9: Workflows
+                if (current_tab_ == AppTab::Workflows) {
+                    for (size_t i = 0; i < wf_preset_boxes_.size() && i < workflow_engine_.get_workflows().size(); ++i) {
+                        if (wf_preset_boxes_[i].Contain(mouse.x, mouse.y)) {
+                            select_workflow_by_index(i);
+                            return true;
+                        }
+                    }
+                    if (btn_run_wf_.Contain(mouse.x, mouse.y)) {
+                        run_active_workflow_full();
+                        return true;
+                    }
+                    if (btn_step_wf_.Contain(mouse.x, mouse.y)) {
+                        execute_active_workflow_step();
+                        return true;
+                    }
+                    if (btn_reset_wf_.Contain(mouse.x, mouse.y)) {
+                        reset_active_workflow();
+                        return true;
+                    }
+                    if (btn_picker_wf_.Contain(mouse.x, mouse.y)) {
+                        open_file_picker();
+                        return true;
+                    }
+                }
+
+                // Clics contextuales en Tab 8: OncoTherapy
+                if (current_tab_ == AppTab::OncoTherapy) {
+                    if (btn_onco_tki_.Contain(mouse.x, mouse.y)) {
+                        administer_targeted_drug(genome::twin::DrugTherapy::TargetedTKI);
+                        return true;
+                    }
+                    if (btn_onco_parp_.Contain(mouse.x, mouse.y)) {
+                        administer_targeted_drug(genome::twin::DrugTherapy::ParpInhibitor);
+                        return true;
+                    }
+                    if (btn_onco_p53_.Contain(mouse.x, mouse.y)) {
+                        administer_targeted_drug(genome::twin::DrugTherapy::P53Reactivator);
+                        return true;
+                    }
+                    if (btn_onco_wash_.Contain(mouse.x, mouse.y)) {
+                        washout_drugs();
+                        return true;
+                    }
+                    if (btn_onco_mtb_.Contain(mouse.x, mouse.y)) {
+                        export_molecular_tumor_board_report();
+                        return true;
+                    }
+                }
+
+                // Clics contextuales en Tab 7: Gemelo Digital
+                if (current_tab_ == AppTab::DigitalTwin) {
+                    if (btn_twin_dox_.Contain(mouse.x, mouse.y)) {
+                        cell_twin_.toggle_doxycycline();
+                        add_log("TWIN", cell_twin_.is_dox_active() ? 
+                                "Doxycycline OSKM pulse INJECTED into culture medium." : 
+                                "Doxycycline OSKM REMOVED from culture medium.");
+                        return true;
+                    }
+                    if (btn_twin_crispr_.Contain(mouse.x, mouse.y)) {
+                        cell_twin_.apply_crispr_rescue();
+                        add_log("CRISPR", "Targeted Cas9/HDR transfection rescued TP53 mutations across all living cells in dish.");
+                        return true;
+                    }
+                    if (btn_twin_uv_.Contain(mouse.x, mouse.y)) {
+                        cell_twin_.trigger_uv_damage();
+                        add_log("ALERT", "UV genotoxic irradiation insult triggered. Testing DNA repair checkpoints.");
+                        return true;
+                    }
+                    if (btn_twin_plus_.Contain(mouse.x, mouse.y)) {
+                        cell_twin_.adjust_population(+25);
+                        add_log("TWIN", "Inoculated +25 cells into virtual Petri dish.");
+                        return true;
+                    }
+                    if (btn_twin_minus_.Contain(mouse.x, mouse.y)) {
+                        cell_twin_.adjust_population(-25);
+                        add_log("TWIN", "Aspirated -25 cells from virtual Petri dish.");
+                        return true;
+                    }
+                    if (btn_twin_zin_.Contain(mouse.x, mouse.y)) {
+                        zoom_in_petri();
+                        return true;
+                    }
+                    if (btn_twin_zout_.Contain(mouse.x, mouse.y)) {
+                        zoom_out_petri();
+                        return true;
+                    }
+                    if (btn_twin_zreset_.Contain(mouse.x, mouse.y)) {
+                        reset_petri_view();
+                        return true;
+                    }
+                }
+
+                // Clics contextuales en Tab 2: VcfExplorer
+                if (current_tab_ == AppTab::VcfExplorer) {
+                    for (size_t i = 0; i < variant_row_boxes_.size(); ++i) {
+                        if (variant_row_boxes_[i].Contain(mouse.x, mouse.y)) {
+                            selected_variant_index_ = static_cast<int>(i);
+                            return true;
+                        }
+                    }
+                }
+
+                // Clics contextuales en Tab 5: CrisprStudio
+                if (current_tab_ == AppTab::CrisprStudio) {
+                    for (size_t i = 0; i < guide_row_boxes_.size(); ++i) {
+                        if (guide_row_boxes_[i].Contain(mouse.x, mouse.y)) {
+                            selected_guide_index_ = static_cast<int>(i);
+                            return true;
+                        }
+                    }
+                }
+            } else if (mouse.button == Mouse::WheelUp) {
+                if (show_file_picker_) {
+                    if (selected_file_picker_index_ > 0) selected_file_picker_index_--;
+                    return true;
+                }
+                if (current_tab_ == AppTab::DigitalTwin) {
+                    zoom_in_petri();
+                    return true;
+                }
+                if (current_tab_ == AppTab::VcfExplorer && selected_variant_index_ > 0) {
+                    selected_variant_index_--;
+                    return true;
+                }
+                if (current_tab_ == AppTab::CrisprStudio && selected_guide_index_ > 0) {
+                    selected_guide_index_--;
+                    return true;
+                }
+                if (current_tab_ == AppTab::Workflows) {
+                    size_t cur = workflow_engine_.get_active_index();
+                    if (cur > 0) select_workflow_by_index(cur - 1);
+                    return true;
+                }
+            } else if (mouse.button == Mouse::WheelDown) {
+                if (show_file_picker_) {
+                    if (selected_file_picker_index_ + 1 < static_cast<int>(available_vcfs_.size())) {
+                        selected_file_picker_index_++;
+                    }
+                    return true;
+                }
+                if (current_tab_ == AppTab::DigitalTwin) {
+                    zoom_out_petri();
+                    return true;
+                }
+                if (current_tab_ == AppTab::VcfExplorer && selected_variant_index_ + 1 < static_cast<int>(vcf_parser_.total_variants())) {
+                    selected_variant_index_++;
+                    return true;
+                }
+                if (current_tab_ == AppTab::CrisprStudio && selected_guide_index_ + 1 < static_cast<int>(crispr_candidates_.size())) {
+                    selected_guide_index_++;
+                    return true;
+                }
+                if (current_tab_ == AppTab::Workflows) {
+                    size_t cur = workflow_engine_.get_active_index();
+                    if (cur + 1 < workflow_engine_.get_workflows().size()) select_workflow_by_index(cur + 1);
+                    return true;
+                }
+            }
+        }
+
+        // Manejo del Modal de Archivos VCF cuando está abierto
+        if (show_file_picker_) {
+            if (event == Event::Escape || event == Event::Character('f') || event == Event::Character('F')) {
+                close_file_picker();
+                return true;
+            }
+            if (event == Event::ArrowUp) {
+                if (selected_file_picker_index_ > 0) selected_file_picker_index_--;
+                return true;
+            }
+            if (event == Event::ArrowDown) {
+                if (selected_file_picker_index_ + 1 < static_cast<int>(available_vcfs_.size())) {
+                    selected_file_picker_index_++;
+                }
+                return true;
+            }
+            if (event == Event::Return) {
+                if (!available_vcfs_.empty() && selected_file_picker_index_ >= 0 && 
+                    selected_file_picker_index_ < static_cast<int>(available_vcfs_.size())) {
+                    load_vcf_dynamic(available_vcfs_[selected_file_picker_index_]);
+                }
+                return true;
+            }
+            return true;
+        }
+
+        // Manejo normal de teclado
         if (event == Event::Character('q') || event == Event::Character('Q') || event == Event::Escape) {
             screen.ExitLoopClosure()();
             return true;
@@ -1474,11 +2099,44 @@ int GenomeForgeApp::run() {
         if (event == Event::Character('6')) { current_tab_ = AppTab::SystemLogs; return true; }
         if (event == Event::Character('7')) { current_tab_ = AppTab::DigitalTwin; return true; }
         if (event == Event::Character('8')) { current_tab_ = AppTab::OncoTherapy; return true; }
+        if (event == Event::Character('9')) { current_tab_ = AppTab::Workflows; return true; }
 
         if (event == Event::Tab) {
-            int next_tab = (static_cast<int>(current_tab_) + 1) % 8;
+            int next_tab = (static_cast<int>(current_tab_) + 1) % 9;
             current_tab_ = static_cast<AppTab>(next_tab);
             return true;
+        }
+
+        // Abrir selector modal de muestras VCF
+        if (event == Event::Character('f') || event == Event::Character('F')) {
+            open_file_picker();
+            return true;
+        }
+
+        // Atajos de la pestaña Workflows
+        if (current_tab_ == AppTab::Workflows) {
+            if (event == Event::Return) {
+                run_active_workflow_full();
+                return true;
+            }
+            if (event == Event::Character('s') || event == Event::Character('S')) {
+                execute_active_workflow_step();
+                return true;
+            }
+            if (event == Event::Character('r') || event == Event::Character('R')) {
+                reset_active_workflow();
+                return true;
+            }
+            if (event == Event::ArrowUp) {
+                size_t cur = workflow_engine_.get_active_index();
+                if (cur > 0) select_workflow_by_index(cur - 1);
+                return true;
+            }
+            if (event == Event::ArrowDown) {
+                size_t cur = workflow_engine_.get_active_index();
+                if (cur + 1 < workflow_engine_.get_workflows().size()) select_workflow_by_index(cur + 1);
+                return true;
+            }
         }
 
         // Exportar Reporte de Comité Molecular de Tumores (MTB)

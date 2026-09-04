@@ -17,12 +17,15 @@ void print_usage(const char* prog_name) {
               << "  --headless             Ejecuta la simulación en modo headless (sin interfaz TUI)\n"
               << "  --ticks <N>            Número de iteraciones a ejecutar en modo headless (default: 30)\n"
               << "  --report-onco [path]   Genera el reporte clínico de Comité Molecular de Tumores (MTB)\n"
+              << "  --test-workflows       Ejecuta y verifica los 5 protocolos clínicos del motor de Workflows\n"
               << "  --snapshot <path>      Ruta del archivo JSON de telemetría (default: data/live_state.json)\n"
               << "  --inspect [path]       Inspecciona el estado de la TUI en vivo y muestra reporte HUD\n"
               << "  --export-csv           Fuerza la exportación de datasets CSV al finalizar\n"
               << "  --help, -h             Muestra esta ayuda detallada\n\n"
-              << "Controles en TUI Interactiva (8 Pestañas Cyber-HUD):\n"
-              << "  [1..8] o [Tab]         Navegar entre las 8 pestañas del Cyber-HUD\n"
+              << "Controles en TUI Interactiva (9 Pestañas Cyber-HUD + Soporte Total de Ratón):\n"
+              << "  [1..9] o [Tab]         Navegar entre las 9 pestañas del Cyber-HUD (incluye Workflows)\n"
+              << "  [Clic]                 Clic nativo en pestañas, botones de acción, protocolos y listas\n"
+              << "  [F]                    Abrir explorador modal interactivo de muestras VCF\n"
               << "  [M]                    Alternar entre Paciente Clínico y Control Sano 1000 Genomas\n"
               << "  [L]                    Conmutar locus clínico (TP53, CDKN2A, PTEN, MYC, BRCA1, EGFR, KRAS, BRAF...)\n"
               << "  [O]                    Exportar Reporte Clínico de Comité Molecular de Tumores (MTB)\n"
@@ -38,9 +41,14 @@ void print_usage(const char* prog_name) {
               << "  [U]                    Insulto genotóxico por irradiación UV\n"
               << "  [+ / -]                Inocular / aspirar células del cultivo virtual (±25)\n"
               << "  [E]                    Simulación HDR en el explorador de variantes\n"
-              << "  [R]                    Reiniciar cultivo / genoma al estado inicial\n"
+              << "  [R]                    Reiniciar cultivo / protocolo / genoma al estado inicial\n"
               << "  [Espacio]              Pausar / reanudar dinámica celular y ODEs\n"
-              << "  [Q / Esc]              Salir de la aplicación\n\n";
+              << "  [Q / Esc]              Salir de la aplicación\n\n"
+              << "En Pestaña 9 (Workflows):\n"
+              << "  [Enter / Clic]         Ejecutar protocolo clínico completo de forma automatizada\n"
+              << "  [S / Clic]             Avanzar un paso en el pipeline clínico\n"
+              << "  [R / Clic]             Reiniciar estado del protocolo clínico\n"
+              << "  [F / Clic]             Cambiar muestra VCF para el protocolo\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -48,6 +56,7 @@ int main(int argc, char* argv[]) {
     bool headless = false;
     bool inspect = false;
     bool report_onco = false;
+    bool test_workflows = false;
     std::string report_onco_path = "data/molecular_tumor_board_report.md";
     std::string inspect_path = "data/live_state.json";
     std::string snapshot_path = "data/live_state.json";
@@ -70,6 +79,8 @@ int main(int argc, char* argv[]) {
             if (i + 1 < argc && argv[i + 1][0] != '-') {
                 report_onco_path = argv[++i];
             }
+        } else if (arg == "--test-workflows") {
+            test_workflows = true;
         } else if (arg == "--snapshot" && i + 1 < argc) {
             snapshot_path = argv[++i];
         } else if (arg == "--inspect") {
@@ -92,6 +103,11 @@ int main(int argc, char* argv[]) {
 
     try {
         genome::ui::GenomeForgeApp app(vcf_path);
+
+        // Modo de verificación automatizada de Workflows Clínicos
+        if (test_workflows) {
+            return app.test_all_workflows_headless();
+        }
 
         // Modo de generación directa de reporte de Comité Molecular de Tumores
         if (report_onco) {

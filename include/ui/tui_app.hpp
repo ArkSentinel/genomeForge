@@ -9,6 +9,8 @@
 #include "digital_twin/cell_twin.hpp"
 #include "oncology/actionability_engine.hpp"
 #include "export/report_generator.hpp"
+#include "workflow/workflow_engine.hpp"
+#include "ftxui/screen/box.hpp"
 
 #include <string>
 #include <vector>
@@ -25,7 +27,8 @@ enum class AppTab : int {
     CrisprStudio = 4,
     SystemLogs = 5,
     DigitalTwin = 6,
-    OncoTherapy = 7
+    OncoTherapy = 7,
+    Workflows = 8
 };
 
 class GenomeForgeApp {
@@ -63,6 +66,20 @@ public:
     void administer_targeted_drug(genome::twin::DrugTherapy drug);
     void washout_drugs();
 
+    // Orquestación visual de workflows clínicos
+    void execute_active_workflow_step();
+    void run_active_workflow_full();
+    void reset_active_workflow();
+    void select_workflow_by_index(size_t index);
+    int test_all_workflows_headless();
+
+    // Selector interactivo de archivos VCF (File Picker)
+    void open_file_picker();
+    void close_file_picker();
+    void scan_available_vcfs();
+    void load_vcf_dynamic(const std::string& path);
+    bool is_file_picker_open() const { return show_file_picker_; }
+
 private:
     void init_simulation_state();
     void refresh_onco_analysis();
@@ -90,6 +107,7 @@ private:
     genome::twin::CellTwinSimulator cell_twin_;
     genome::oncology::ActionabilityEngine onco_engine_;
     genome::oncology::ActionabilityAnalysis onco_analysis_;
+    genome::workflow::WorkflowEngine workflow_engine_;
 
     // Pestaña activa
     AppTab current_tab_{AppTab::Dashboard};
@@ -99,11 +117,40 @@ private:
     size_t active_locus_index_{0};
     bool yamanaka_running_{true};
 
+    // Estado del File Picker Modal
+    bool show_file_picker_{false};
+    std::vector<std::string> available_vcfs_;
+    int selected_file_picker_index_{0};
+
     // Estado de CRISPR
     std::vector<genome::crispr::GuideCandidate> crispr_candidates_;
     int selected_guide_index_{0};
     bool crispr_applied_{false};
     std::string target_sequence_window_;
+
+    // Cajas de colisión para clics de ratón (FTXUI Mouse Interaction)
+    ftxui::Box tab_boxes_[9];
+    ftxui::Box btn_run_wf_;
+    ftxui::Box btn_step_wf_;
+    ftxui::Box btn_reset_wf_;
+    ftxui::Box btn_picker_wf_;
+    ftxui::Box btn_onco_tki_;
+    ftxui::Box btn_onco_parp_;
+    ftxui::Box btn_onco_p53_;
+    ftxui::Box btn_onco_wash_;
+    ftxui::Box btn_onco_mtb_;
+    ftxui::Box btn_twin_dox_;
+    ftxui::Box btn_twin_crispr_;
+    ftxui::Box btn_twin_uv_;
+    ftxui::Box btn_twin_plus_;
+    ftxui::Box btn_twin_minus_;
+    ftxui::Box btn_twin_zin_;
+    ftxui::Box btn_twin_zout_;
+    ftxui::Box btn_twin_zreset_;
+    std::vector<ftxui::Box> wf_preset_boxes_;
+    std::vector<ftxui::Box> file_picker_boxes_;
+    std::vector<ftxui::Box> variant_row_boxes_;
+    std::vector<ftxui::Box> guide_row_boxes_;
 
     // Logs interactivos
     struct LogEntry {
