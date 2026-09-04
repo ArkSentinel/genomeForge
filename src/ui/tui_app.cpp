@@ -365,7 +365,7 @@ int GenomeForgeApp::run() {
                 hbox({
                     text("◈ PULSO YAMANAKA & R-SCORE") | bold | color(Color::Cyan),
                     filler(),
-                    text(yamanaka_running_ ? "▶ RUNNING" : "❚❚ PAUSED") | bold | (yamanaka_running_ ? color(Color::Green) : color(Color::Yellow))
+                    text(yamanaka_running_ ? "[RUNNING]" : "[PAUSED]") | bold | (yamanaka_running_ ? color(Color::Green) : color(Color::Yellow))
                 }),
                 separator(),
                 r_gauge_dash,

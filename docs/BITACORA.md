@@ -4,24 +4,27 @@ Este documento registra cronológicamente las decisiones de diseño, hitos de im
 
 ---
 
-## 📌 Estado General del Proyecto
+## Estado General del Proyecto
 
 | Módulo / Componente | Estado | Tecnología Principal | Notas Técnicas |
 | :--- | :---: | :--- | :--- |
-| **Especificación de Requerimientos** | ✅ Completado | Markdown / KaTeX | Formalizado en `docs/SPECS.md` |
-| **Bitácora de Ingeniería** | ✅ Activo | Markdown | Seguimiento continuo de hitos (`docs/BITACORA.md`) |
-| **Monitoreo Hardware Apple Silicon** | ✅ Operativo | Darwin Mach Kernel (`mach_host.h`) | Telemetría real de núcleos P/E y RAM unificada |
-| **Arquitectura de Pestañas (Tabs)** | ✅ Operativo | FTXUI (C++20) | 7 pestañas dedicadas a pantalla completa (`[1]` a `[7]`) |
-| **Ingesta de Variantes VCF & 1000G** | ✅ Operativo | C++20 / Memoria alineada | `alignas(64)` en ARM64 y soporte 1000 Genomas |
-| **Catálogo Multi-Locus 1000G** | ✅ Operativo | C++20 / Tabix Range Streaming | 8 loci clínicos (*TP53*, *CDKN2A*, *PTEN*, *MYC*, etc.) con conmutación interactiva `[L]` |
-| **Motor MoE (Mixture of Experts)** | ✅ Operativo | Accelerate (vDSP) / Metal GPU | Gating Router, Top-2 y aceleración en Apple M4 |
-| **Simulador Dinámico Yamanaka** | ✅ Operativo | ODE Solver continuo (RK4) | Sistema dinámico no lineal, cinética OSKM y R-Score |
-| **Motor de Intervención CRISPR** | ✅ Operativo | C++ SIMD ARM NEON | Escaneo PAM NGG, Cas-OFFinder y reparación HDR |
-| **Gemelo Digital Celular (Digital Twin)** | ✅ Operativo | ABM / Metal GPU / FTXUI Canvas | Simulación multi-agente en placa de Petri 2D con biofísica espacial y ciclo celular |
+| **Especificación de Requerimientos** | [OK] Completado | Markdown / KaTeX | Formalizado en `docs/SPECS.md` |
+| **Bitácora de Ingeniería** | [OK] Activo | Markdown | Seguimiento continuo de hitos (`docs/BITACORA.md`) |
+| **Monitoreo Hardware Apple Silicon** | [OK] Operativo | Darwin Mach Kernel (`mach_host.h`) | Telemetría real de núcleos P/E y RAM unificada |
+| **Arquitectura de Pestañas (Tabs)** | [OK] Operativo | FTXUI (C++20) | 7 pestañas dedicadas a pantalla completa (`[1]` a `[7]`) |
+| **Ingesta de Variantes VCF & 1000G** | [OK] Operativo | C++20 / Memoria alineada | `alignas(64)` en ARM64 y soporte 1000 Genomas |
+| **Catálogo Multi-Locus 1000G** | [OK] Operativo | C++20 / Tabix Range Streaming | 8 loci clínicos (*TP53*, *CDKN2A*, *PTEN*, *MYC*, etc.) con conmutación interactiva `[L]` |
+| **Motor MoE (Mixture of Experts)** | [OK] Operativo | Accelerate (vDSP) / Metal GPU | Gating Router, Top-2 y aceleración en Apple M4 |
+| **Simulador Dinámico Yamanaka** | [OK] Operativo | ODE Solver continuo (RK4) | Sistema dinámico no lineal, cinética OSKM y R-Score |
+| **Motor de Intervención CRISPR** | [OK] Operativo | C++ SIMD ARM NEON | Escaneo PAM NGG, Cas-OFFinder y reparación HDR |
+| **Gemelo Digital Celular (Digital Twin)** | [OK] Operativo | ABM / Metal GPU / FTXUI Canvas | Simulación multi-agente en placa de Petri 2D con biofísica espacial y ciclo celular |
+| **Controlador Temporal (Time Warp)** | [OK] Operativo | C++20 Multi-Scale Engine | 8 órdenes de magnitud (Segundos a Décadas) con reloj biológico simulado |
+| **Inspector de Estado e Interfaz Headless** | [OK] Operativo | IPC / Atomic JSON Streaming | Telemetría atómica en `data/live_state.json` y CLI `--inspect` / `--headless` |
+| **Exportador Científico de Datasets** | [OK] Operativo | C++20 CSV Formatter | Datasets de censo, células y variantes exportados a `data/` bajo demanda `[X]` |
 
 ---
 
-## 📝 Registro Cronológico de Entradas (DevLog)
+## Registro Cronológico de Entradas (DevLog)
 
 ### [2026-09-04] — Entrada #001: Kickoff del Proyecto y Definición de Especificaciones
 * **Objetivo:** Establecer los fundamentos técnicos, la arquitectura de módulos y la estrategia de aceleración de hardware para GenomeForge-TUI en Apple Silicon.
@@ -64,10 +67,10 @@ Este documento registra cronológicamente las decisiones de diseño, hitos de im
 ---
 
 ### [2026-09-04] — Entrada #003: Refactorización Estética a Señalética Científica de Laboratorio
-* **Objetivo:** Eliminar emojis informales de la interfaz TUI y reemplazar toda la señalética por glifos tipográficos estandarizados (`◈`, `▶`, `❚❚`, `[!]`, `[x]`, `[+]`, `[-]`), adoptando un lenguaje visual clínico, sobrio y riguroso.
+* **Objetivo:** Eliminar emojis informales de la interfaz TUI y reemplazar toda la señalética por glifos tipográficos estandarizados (`◈`, `[!]`, `[x]`, `[+]`, `[-]`), adoptando un lenguaje visual clínico, sobrio y riguroso.
 * **Cambios Implementados:**
   1. **Cabecera y Paneles:** Sustitución de pictogramas por distintivos geométricos de laboratorio (`◈ PANEL A`, `◈ PANEL B`, etc.).
-  2. **Estados de Ejecución:** Representación de estados de simulación con glifos funcionales (`▶ RUNNING` para pulso activo, `❚❚ PAUSED` para congelación del estado).
+  2. **Estados de Ejecución:** Representación de estados de simulación con indicadores funcionales (`[RUNNING]` para pulso activo, `[PAUSED]` para congelación del estado).
   3. **Clasificación Clínico-Patológica en Visor:**
      * `[!] COLLISION` (Rojo): Colisión crítica entre factores de Yamanaka y mutaciones supresoras.
      * `[x] PATHOG` (Rojo claro): Variante patogénica anotada en ClinVar.

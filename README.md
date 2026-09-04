@@ -1,189 +1,376 @@
-# GenomeForge-TUI 🧬
+# GenomeForge-TUI
 
-> **Herramienta bioinformática interactiva en terminal (TUI) desarrollada en C++20 con aceleración de hardware para Apple Silicon (M1–M4: CPU AMX/vDSP y GPU Metal) para simulación de redes de regulación génica (MoE), dinámica de reprogramación celular (Yamanaka OSKM), evaluación de inestabilidad genómica y diseño de intervenciones CRISPR-Cas9.**
-
----
-
-## 📋 Tabla de Contenidos
-* [Arquitectura del Sistema](#-arquitectura-del-sistema)
-* [Características Principales](#-características-principales)
-* [Requisitos del Sistema](#-requisitos-del-sistema)
-* [Compilación y Ejecución](#-compilación-y-ejecución)
-* [Navegación y Controles por Pestañas](#-navegación-y-controles-por-pestañas)
-* [Motores Científicos y Matemáticos](#-motores-científicos-y-matemáticos)
-* [Integración con el Proyecto 1000 Genomas](#-integración-con-el-proyecto-1000-genomas)
-* [Documentación Adicional](#-documentación-adicional)
+> Herramienta bioinformática interactiva en terminal (TUI) desarrollada en C++20 con aceleración de hardware para Apple Silicon (M1-M4: AMX/vDSP en CPU y Metal Shading Language en GPU). Integra simulación de redes de regulación génica (MoE), dinámica de reprogramación celular continua (factores de Yamanaka OSKM), evaluación de riesgo oncogénico (R-Score), diseño de intervenciones genómicas CRISPR-Cas9 y un Gemelo Digital Celular espacial (Whole-Cell Spatial Digital Twin) con controlador temporal multi-escala.
 
 ---
 
-## 🏗 Arquitectura del Sistema
+## Tabla de Contenidos
+* [1. Visión General del Sistema](#1-visión-general-del-sistema)
+* [2. Arquitectura de Hardware Apple Silicon](#2-arquitectura-de-hardware-apple-silicon)
+* [3. Navegación y Procesos del Cyber-HUD (7 Pestañas)](#3-navegación-y-procesos-del-cyber-hud-7-pestañas)
+* [4. Fundamentos Matemáticos y Modelado Biológico](#4-fundamentos-matemáticos-y-modelado-biológico)
+  * [Dinámica No Lineal de Yamanaka (ODE Solver RK4)](#dinámica-no-lineal-de-yamanaka-ode-solver-rk4)
+  * [Métrica de Riesgo Oncogénico (R-Score)](#métrica-de-riesgo-oncogénico-r-score)
+  * [Red de Enrutamiento MoE y Subredes de Expertos](#red-de-enrutamiento-moe-y-subredes-de-expertos)
+  * [Motor de Intervención CRISPR-Cas9 y Homología HDR](#motor-de-intervención-crispr-cas9-y-homología-hdr)
+* [5. Gemelo Digital Celular Espacial (Living Cell Digital Twin)](#5-gemelo-digital-celular-espacial-living-cell-digital-twin)
+  * [Modelo Basado en Agentes (ABM)](#modelo-basado-en-agentes-abm)
+  * [Controlador Temporal Multi-Escala (Time Warp)](#controlador-temporal-multi-escala-time-warp)
+  * [Visualización Citomorfológica en Canvas Braille](#visualización-citomorfológica-en-canvas-braille)
+* [6. Interoperabilidad: Modo Headless, Inspector IA y Datasets CSV](#6-interoperabilidad-modo-headless-inspector-ia-y-datasets-csv)
+* [7. Integración Multi-Locus con el Proyecto 1000 Genomas](#7-integración-multi-locus-con-el-proyecto-1000-genomas)
+* [8. Requisitos, Compilación y Referencia CLI](#8-requisitos-compilación-y-referencia-cli)
+* [9. Tabla de Atajos de Teclado](#9-tabla-de-atajos-de-teclado)
+* [10. Documentación y Referencias Técnicas](#10-documentación-y-referencias-técnicas)
 
+---
+
+## 1. Visión General del Sistema
+
+GenomeForge-TUI es una estación de trabajo computacional para medicina de precisión y biología sintética ejecutada íntegramente en la terminal. Su propósito es simular el impacto biológico de la reprogramación celular mediante factores de Yamanaka (*Oct4*, *Sox2*, *Klf4*, *c-Myc* / OSKM) sobre genomas portadores de variantes patogénicas en supresores tumorales críticos (*TP53*, *CDKN2A*, *PTEN*), cuantificar el riesgo de escape neoplásico y permitir el diseño automatizado de rescates genómicos mediante CRISPR-Cas9 in-silico.
+
+El sistema fusiona bioinformática estructural, física de partículas intercelulares, cinéticas bioquímicas de ecuaciones diferenciales continuas y computación de alto rendimiento aprovechando la arquitectura de memoria unificada (UMA) de los chips de Apple.
+
+---
+
+## 2. Arquitectura de Hardware Apple Silicon
+
+GenomeForge-TUI está diseñado específicamente para exprimir las capacidades arquitectónicas del silicio de Apple:
+
+```text
++-----------------------------------------------------------------------------------------------+
+|                                    GenomeForge-TUI Core (C++20)                              |
+|           < 1: DASHBOARD > | < 2: VCF > | < 3: OSKM > | < 4: MoE > | < 5: CRISPR >           |
+|                               < 6: SYSTEM > | < 7: DIGITAL TWIN >                             |
++-----------------------------------------------┬-----------------------------------------------+
+                                                │
+         +--------------------------------------+--------------------------------------+
+         |                                      |                                      |
+         v                                      v                                      v
++------------------+                  +------------------+                   +------------------+
+|   Yamanaka RK4   |                  |   Router MoE     |                   |  Biofísica 2D    |
+|   Continuo ODE   |                  |  Accelerate vDSP |                   |    Metal GPU     |
+|   Sistema 5x5    |                  |  Apple Matrix AMX|                   |  Kernel MSL M4   |
++--------+---------+                  +--------+---------+                   +--------+---------+
+         |                                      |                                      |
+         +--------------------------------------+--------------------------------------+
+                                                │
+                                                v
++-----------------------------------------------------------------------------------------------+
+|                           Unified Memory Architecture (Zero-Copy Buffer)                      |
+|                  GenomicVariant (alignas(64))  |  CellAgent (alignas(64))                     |
+|                                MTLResourceStorageModeShared                                   |
++-----------------------------------------------------------------------------------------------+
 ```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                                 GenomeForge-TUI (C++20)                                │
-│          [1] DASHBOARD | [2] VCF | [3] OSKM | [4] MoE | [5] CRISPR | [6] SYSTEM        │
-└───────────────────────────────────────────┬────────────────────────────────────────────┘
-                                            │
-       ┌────────────────────────────────────┼────────────────────────────────────┐
-       ▼                                    ▼                                    ▼
-┌──────────────┐                    ┌──────────────┐                     ┌──────────────┐
-│ Yamanaka RK4 │                    │  Motor MoE   │                     │ CRISPR-Cas9  │
-│  Continuous  │                    │  Accelerate  │                     │  ARM NEON    │
-│  ODE Solver  │                    │  Metal (M4)  │                     │ Cas-OFFinder │
-└──────┬───────┘                    └──────┬───────┘                     └──────┬───────┘
-       │                                   │                                    │
-       └───────────────────────────────────┼────────────────────────────────────┘
-                                           ▼
-       ┌────────────────────────────────────────────────────────────────────────┐
-       │     Unified Memory Buffer (Zero-Copy MTLResourceStorageModeShared)     │
-       │               Variantes VCF alineadas a 64 bytes (L1/L2)               │
-       └────────────────────────────────────────────────────────────────────────┘
+
+1. **Alineación a Líneas de Caché ARM64 (`alignas(64)`):**
+   * Tanto las variantes genómicas (`GenomicVariant`) como los agentes celulares (`CellAgent`) están estrictamente alineados y rellenados a 64 bytes (`static_assert(sizeof(...) == 64)`).
+   * Esto elimina el *cache line splitting* y el *false sharing*, permitiendo que los núcleos Performance (Firestorm/Avalanche/M4 cores) carguen los datos mediante instrucciones vectorizadas de un solo ciclo (`LDP`/`STP`).
+2. **Memoria Unificada Cero-Copias (Zero-Copy UMA):**
+   * Los buffers de partículas celulares se asignan utilizando `MTLResourceStorageModeShared`. La CPU prepara y actualiza los parámetros biológicos en memoria y la GPU Metal procesa los kernels de colisión mecánica sobre el mismo espacio de direccionamiento físico sin transferencias a través de un bus PCIe.
+3. **Aceleración Vectorial con Apple Accelerate:**
+   * La red de compuerta (Gating Network) del modelo Mixture of Experts (MoE) ejecuta la multiplicación matriz-vector a través de `cblas_sgemv` y transformaciones vectoriales `vDSP`, logrando latencias de inferencia de 1.8 microsegundos en la unidad matricial Apple AMX.
+4. **Vectorización SIMD ARM NEON (128-bit):**
+   * El cálculo de especificidad de guías frente a homólogos genómicos (análogo a Cas-OFFinder) está vectorizado con registros `uint8x16_t` e intrínsecos `vceqq_u8`, evaluando 16 nucleótidos por instrucción de ciclo.
+5. **Telemetría no bloqueante del Kernel Mach (`mach_host.h`):**
+   * Muestreo continuo sin impacto en el rendimiento de núcleos P (Performance) vs E (Efficiency), paginación y memoria *wired*.
+
+---
+
+## 3. Navegación y Procesos del Cyber-HUD (7 Pestañas)
+
+La interfaz gráfica en terminal (construida con FTXUI en C++20) sigue una estética de Cyber-HUD científico, organizada en 7 pestañas a pantalla completa:
+
+* **< 1: DASHBOARD >:**
+  * Resumen clínico del paciente, diagnóstico genómico global, indicador holográfico del R-Score poblacional, confluencia del cultivo, estado de los inductores biológicos (Doxiciclina / CRISPR) y consola de eventos.
+* **< 2: VCF EXPLORER >:**
+  * Tabla exhaustiva de variantes del paciente y del consorcio 1000 Genomas. Coordenadas cromosómicas, alelos REF/ALT, profundidad de secuenciación (DP), frecuencia alélica poblacional (AF) y visualizador de la ventana flanqueante (+/- 20 pares de bases) con codones diana. Soporta conmutación en caliente de locus mediante la tecla `[L]`.
+* **< 3: YAMANAKA DYNAMICS >:**
+  * Monitor de cinéticas de reprogramación continua mediante ecuaciones diferenciales ordinarias (ODEs). Expresión de factores OSKM (Oct4, Sox2, Klf4, c-Myc), barrera de senescencia, inestabilidad genómica acumulada, puntos de control de ciclo p53/p21 y gráfica sparkline histórica del R-Score.
+* **< 4: MoE ROUTER >:**
+  * Arquitectura Mixture of Experts. Extracción de embedding genómico de 16 dimensiones, distribución de pesos Softmax en la Gating Network y activación proporcional sobre las 4 subredes biológicas. Telemetría comparada de latencia AMX/vDSP frente a Metal GPU.
+* **< 5: CRISPR STUDIO >:**
+  * Entorno de edición genómica dirigida. Escaneo de motivos PAM NGG en hebras forward y reverse, extracción de protospacers de 20 nt, scoring de corte on-target (heurística Rule Set 2 / Doench) y distancia de corte a la mutación. Control `[E]` para ejecutar reparación in-silico por homología (HDR) sustituyendo el codón mutado.
+* **< 6: SYSTEM & LOGS >:**
+  * Diagnóstico en vivo de la plataforma Apple Silicon. Monitoreo individualizado por núcleo de CPU (P-Cores vs E-Cores), deslose de memoria unificada (activa, cableada, libre) y registro de auditoría del sistema.
+* **< 7: DIGITAL TWIN >:**
+  * Placa de Petri virtual en 2D interactiva. Renderizado citomorfológico de alta fidelidad en sub-píxeles Braille, censo celular en vivo, dinámica clonal, controlador de velocidad temporal multi-escala (*Time Warp*) y controles de inducción / rescate.
+
+---
+
+## 4. Fundamentos Matemáticos y Modelado Biológico
+
+### Dinámica No Lineal de Yamanaka (ODE Solver RK4)
+
+El proceso de reprogramación celular hacia pluripotencia inducida (iPSC) y su conflicto con la integridad genómica se formula como un sistema continuo de 5 ecuaciones diferenciales ordinarias acopladas:
+
+$$\frac{dP}{dt} = k_{p1} \cdot [\text{Oct4}][\text{Sox2}] + k_{p2} \cdot [\text{Klf4}] - \gamma_p \cdot P$$
+
+$$\frac{dS}{dt} = k_{s1} \cdot [\text{c-Myc}] \cdot (1 - \Omega_{\text{TP53}}) + k_{s2} \cdot [\text{Klf4}] - \gamma_s \cdot S$$
+
+$$\frac{dI}{dt} = k_{\text{myc}} \cdot [\text{c-Myc}]^2 \cdot (1 - p_{53}) + k_{\text{dna}} \cdot \text{Burden} - \gamma_i \cdot I$$
+
+$$\frac{dp_{53}}{dt} = k_{\text{act}} \cdot I \cdot \Omega_{\text{TP53}} - \gamma_{\text{deg}} \cdot p_{53}$$
+
+$$\frac{dp_{21}}{dt} = k_{21} \cdot p_{53} - \gamma_{21} \cdot p_{21}$$
+
+Donde:
+* $P(t)$: Nivel de Pluripotencia ($0.0 \to 1.0$).
+* $S(t)$: Nivel de Senescencia celular defensiva.
+* $I(t)$: Inestabilidad genómica acumulada.
+* $\Omega_{\text{TP53}}$: Flag binario de integridad funcional del gen *TP53* ($1.0$ salvaje / restaurado, $0.0$ mutado p.R175H).
+* $\text{Burden}$: Carga mutacional patogénica relativa extraída del VCF.
+
+El sistema se resuelve numéricamente en cada ciclo temporal mediante integración de Runge-Kutta de 4º Orden (RK4):
+
+$$y_{n+1} = y_n + \frac{\Delta t}{6} (k_1 + 2k_2 + 2k_3 + k_4)$$
+
+---
+
+### Métrica de Riesgo Oncogénico (R-Score)
+
+Durante la reprogramación celular, la sobreexpresión ectópica del oncogén *c-Myc* en un fondo genético con pérdida de función de *TP53* impide el arresto fisiológico en $G_1/S$, conduciendo a transformación maligna. Esta dinámica se cuantifica mediante el **R-Score**:
+
+$$R(t) = w_1 \cdot I(t) + w_2 \cdot \frac{[\text{c-Myc}](t)}{p_{53}(t) + \epsilon} + w_3 \cdot \text{Burden}$$
+
+* **Interpretación Clínica del R-Score:**
+  * $R < 0.25$: **STABLE / LOW RISK** (Reprogramación fisiológica viable, arresto p53 activo).
+  * $0.25 \le R \le 0.50$: **MODERATE RISK** (Estrés replicativo transitorio, balance homeostático).
+  * $R > 0.50$: **HIGH RISK / MALIGNANT DRIFT** (Colisión crítica: proliferación incontrolada, aneuploidía y teratogénesis).
+
+---
+
+### Red de Enrutamiento MoE y Subredes de Expertos
+
+Cada variante genómica se proyecta en un vector de características de 16 dimensiones:
+
+$$x = \phi(\text{pos}, \text{chrom}, \text{effect}, \text{AF}, \text{DP}, \dots) \in \mathbb{R}^{16}$$
+
+La compuerta del MoE (Gating Network) calcula la afinidad sobre las 4 subredes biológicas:
+
+$$H = W_{\text{gate}} \cdot x + b_{\text{gate}}$$
+
+$$G(x) = \text{Softmax}(H) \in \mathbb{R}^4$$
+
+Las 4 subredes de expertos corresponden a las vías moleculares clave:
+1. **Experto 0 (DNA Repair):** Vías de escisión de nucleótidos (NER) y recombinación homóloga.
+2. **Experto 1 (Cell Cycle Checkpoints):** Regulación ciclinas/CDK, arresto $G_1/S$ y $G_2/M$.
+3. **Experto 2 (p53 Apoptosis):** Señalización pro-apoptótica (Bax, Puma, Caspasa-3).
+4. **Experto 3 (Stem Pluripotency):** Red de transcripción Nanog, Oct4 y remodelación de cromatina.
+
+El motor selecciona dinámicamente las dos subredes con mayor ponderación (Top-2 Gating):
+
+$$y = \sum_{i \in \text{Top-2}} G(x)_i \cdot E_i(x)$$
+
+---
+
+### Motor de Intervención CRISPR-Cas9 y Homología HDR
+
+1. **Búsqueda PAM:** Escanea la secuencia diana identificando motivos canónicos `5'-NGG-3'` (hebra codificante) y motivos `5'-CCN-3'` (hebra molde / reversa).
+2. **Scoring de Eficacia On-Target:** Evalúa el espaciador de 20 nt mediante la heurística Doench / Rule Set 2:
+   $$\text{Score} = f(\text{Contenido GC}, \text{Polímeros T}, \text{Afinidad PAM adyacente})$$
+3. **Distancia de Hamming ARM NEON (Cas-OFFinder):** Búsqueda de homología en ventanas genómicas para predecir cortes no deseados (*off-targets*).
+4. **Reparación HDR in-silico (`[E]`):**
+   * Reemplaza el codón mutado (ej. *TP53* c.524G>A; p.Arg175His -> CGC salvaje).
+   * Restaura $\Omega_{\text{TP53}} = 1.0$ en el ODE de Yamanaka.
+   * El R-Score se desploma instantáneamente a niveles seguros ($< 0.15$), estabilizando el cultivo.
+
+---
+
+## 5. Gemelo Digital Celular Espacial (Living Cell Digital Twin)
+
+### Modelo Basado en Agentes (ABM)
+
+El módulo `CellTwinSimulator` simula un cultivo en vitro 2D dentro de una placa de Petri virtual de radio $R = 45.0\text{ mm}$ que aloja hasta $3.000$ células simultáneas.
+
+Cada célula individual (`CellAgent`) contiene una máquina de estados finitos del ciclo celular:
+
+$$G_0 \text{ (Quiescencia)} \longrightarrow G_1 \text{ (Crecimiento)} \longrightarrow S \text{ (Síntesis ADN)} \longrightarrow G_2 \text{ (Premitótico)} \longrightarrow M \text{ (Mitosis)}$$
+
+Al completar la fase $M$, la célula madre genera una célula hija por gemación mitótica en una orientación elástica con separación de masas, o sufre apoptosis / senescencia según su nivel de daño en ADN y actividad de p53.
+
+```text
+                                +-------------------+
+                                | G0 (Quiescencia)  |
+                                +---------+---------+
+                                          |
+                                          v
+      +-------------------------> G1 (Crecimiento)  <------------------------+
+      |                                   |                                  |
+      |                                   v                                  |
+      |                            S (Síntesis)                              |
+      |                                   |                                  |
+      |                                   v                                  |
+      |                           G2 (Premitótico)                           |
+      |                                   |                                  |
+      |                                   v                                  |
+      |                              M (Mitosis)                             |
+      |                             /           \                            |
+      |                            /             \                           |
+      |      [cleavage_state = 1] v               v [p53 > 0.92 / Daño UV]   |
+      |             Anafase (Dumbbell)       Apoptosis (Corpse)              |
+      |                           |               |                          |
+      |      [cleavage_state = 2] v               v                          |
+      |             Telofase (Doblete)       Degradación / Lisis             |
+      |                           |                                          |
+      +---------------------------+------------------------------------------+
+                               Mitosis completada
+                            (Célula Madre + Hija)
 ```
 
 ---
 
-## ⚡ Características Principales
+### Controlador Temporal Multi-Escala (Time Warp)
 
-1. **Aceleración por Hardware en Apple Silicon:**
-   * **CBLAS & vDSP:** Inferencia ultrarrápida del *Gating Router* en CPU AMX (~10–40 microsegundos).
-   * **Metal Compute (GPU):** Pipelines de cómputo en Shading Language (MSL) ejecutándose en la GPU (Apple M4) con buffers en **Memoria Unificada Compartida (Zero-Copy sin transferencias por bus)**.
-   * **ARM NEON SIMD:** Comparación de secuencias y cálculo de homología CRISPR vectorizado con instrucciones de 128 bits (`uint8x16_t`, `vceqq_u8`).
-2. **Telemetría en Vivo del Kernel Darwin:**
-   * Consulta directa de `mach/mach_host.h`, `host_processor_info` y `host_statistics64` para desglosar la carga en tiempo real entre núcleos de Rendimiento (**P-Cores**) y núcleos de Eficiencia (**E-Cores**), además del uso de memoria RAM unificada.
-3. **Ingesta de Variantes VCF Optimizada para Caché:**
-   * Estructura `GenomicVariant` con alineación estricta de 64 bytes (`alignas(64)`), garantizando correspondencia 1:1 con las líneas de caché de procesadores ARM64.
-   * Clasificación de patogenicidad ClinVar y detección de colisiones de reprogramación en supresores tumorales (*TP53*, *CDKN2A*, *PTEN*).
-4. **Simulador Continuo de Yamanaka (RK4):**
-   * Resuelve numéricamente un sistema acoplado de 5 ecuaciones diferenciales ordinarias no lineales (ODEs) con el método Runge-Kutta de 4º Orden.
-   * Cuantifica en tiempo real el **R-Score (Oncogenic Risk Score)** ante sobreexpresión de *c-Myc* en células con pérdida de función de *p53*.
-5. **Motor CRISPR-Cas9 y Cas-OFFinder:**
-   * Detección de motivos PAM `NGG`, extracción de protospacers de 20 nt y cálculo de eficacia con heurísticas Doench / Rule Set 2.
-   * Cribado de *off-targets* mediante distancia de Hamming vectorizada en ARM NEON.
-   * Simulación in-silico de reparación dirigida por homología (HDR), restaurando el genoma salvaje y recalculando la dinámica celular al instante.
-6. **Interfaz TUI Reactiva en 7 Pestañas (FTXUI) y Rediseño Cyber-HUD:**
-   * Estética biolab sci-fi de alta tecnología (`⟦ ARCH: APPLE M4 ⟧`, `[AMX::vDSP ONLINE]`, `[GPU::METAL UMA]`).
-   * Navegación por pestañas independientes a pantalla completa (`[1]` a `[7]`).
-7. **Gemelo Digital Celular (Placa de Petri 2D & ABM):**
-   * Placa de Petri virtual con biofísica de repulsión elástica acelerada en Metal GPU.
-   * Renderizado citomorfológico de alta resolución en sub-píxeles Braille: husos fibroblásticos, células intermedias MET, colonias iPSC esmeralda, clones neoplásicos sobredimensionados, fragmentos apoptóticos y surcos de división mitótica.
-8. **Controlador Temporal Multi-Escala (*Time Warp*):**
-   * Escalado de la velocidad de simulación a lo largo de 8 órdenes de magnitud (Segundos, Minutos, Horas, Días, Semanas, Meses, Años, Décadas) con atajos `[` y `]`.
-9. **Modo Headless e Inspector de Estado para Agentes IA:**
-   * Ejecución no interactiva (`--headless`, `make headless`) para pipelines automatizados.
-   * Telemetría estructurada atómica en `data/live_state.json` e informe de inspección CLI (`--inspect`, `make inspect`).
-10. **Exportador Científico a CSV:**
-    * Exportación bajo demanda (`[X]` o `--export-csv`) de censos poblacionales, agentes celulares individuales y variantes genómicas en `data/export_*.csv`.
+La simulación permite alterar dinámicamente la escala del tiempo a través de 8 órdenes de magnitud discretos mediante las teclas `[` (frenar) y `]` (acelerar):
+
+| Escala (`TimeWarpScale`) | Multiplicador | Dominio Biológico Modelado |
+| :--- | :---: | :--- |
+| **Seconds** | $1.0\times$ | Tiempo real, difusión física molecular y rebote elástico. |
+| **Minutes** | $60.0\times$ | Señalización paracrina, fosforilación y vías quinasas. |
+| **Hours** | $3,600.0\times$ | Transición de fases del ciclo celular ($G_1 \to S \to G_2 \to M$). |
+| **Days** | $86,400.0\times$ | Cinética de reprogramación de Yamanaka (inducción OSKM). |
+| **Weeks** | $604,800.0\times$ | Crecimiento y expansión de colonias pluripotentes iPSC. |
+| **Months** | $2,592,000.0\times$ | Deriva genómica, selección clonal y acumulación mutacional. |
+| **Years** | $31,536,000.0\times$ | Senescencia replicativa celular acumulada (acortamiento telómeros). |
+| **Decades** | $315,360,000.0\times$ | Reloj epigenético de metilación e inestabilidad a largo plazo. |
+
+* **Reloj Biológico Formateado:** Registra el tiempo simulado exacto: `T+ 000y:00m:04d:18h:32m:00s`.
+* **Estabilizador Biofísico:** La cinemática espacial y el ciclo celular incorporan un factor adaptativo `bio_speed_boost` para asegurar transiciones morfológicas fluidas sin sobrecarga de cómputo en fotogramas de gran escala.
 
 ---
 
-## 💻 Requisitos del Sistema
+### Visualización Citomorfológica en Canvas Braille
 
-* **Hardware:** Mac con procesador Apple Silicon (M1, M2, M3, M4 o variantes Pro/Max/Ultra).
-* **Sistema Operativo:** macOS 14 (Sonoma) o macOS 15 (Sequoia) o superior.
-* **Herramientas de Compilación:**
-  * Xcode Command Line Tools (`clang++` compatible con C++20).
-  * CMake 3.20+ (o superior).
-  * Make (`/usr/bin/make`).
-* **Frameworks de macOS Vinculados:**
-  * `-framework Accelerate`
-  * `-framework Metal`
-  * `-framework Foundation`
+Sobre el `Canvas` de FTXUI ($114 \times 70$ sub-píxeles Braille), cada fenotipo celular se dibuja con su estructura citológica característica:
+
+* **Fibroblasto Somático (`SomaticFibroblast`):** Morfología fusiforme alargada bipolar orientada según el vector de velocidad $(v_x, v_y)$ con núcleo oval central cian.
+* **Intermedio MET (`IntermediateReprog`):** Célula redondeada en transición mesénquima-epitelio en color amarillo.
+* **Colonia iPSC Pluripotente (`PluripotentIPSC`):** Colonias epiteliales compactas tipo cobblestone con núcleo esmeralda y halo verde periférico cohesivo.
+* **Clon Neoplásico Maligno (`TransformedMalignant`):** Pleomorfismo celular severo con núcleos gigantes hipercromáticos e irregulares en rojo carmesí.
+* **Cuerpo Apoptótico (`ApoptoticCorpse`):** Picnosis y blebbing celular disperso en restos celulares punteados en gris pizarra.
+* **Surco de División Mitótica (`cleavage_state`):** Constricción en reloj de arena (dumbbell) en anafase tardía y dobletes de telofase previos a la citocinesis en magenta y blanco.
 
 ---
 
-## 🚀 Compilación y Ejecución
+## 6. Interoperabilidad: Modo Headless, Inspector IA y Datasets CSV
 
-### 1. Compilación
-Desde la raíz del repositorio:
+GenomeForge-TUI está diseñado para operar tanto de forma interactiva en la terminal como de forma autónoma integrada con agentes de inteligencia artificial, pipelines bioinformáticos y scripts de análisis.
+
+### 1. Ejecución Headless
+Permite ejecutar simulaciones aceleradas sin entorno de interfaz gráfica:
 ```bash
-make build
-```
-
-### 2. Ejecución Interactiva (Cyber-HUD)
-Para iniciar con el panel multicromosómico clínico:
-```bash
-./build/genome_forge --vcf data/1000genomes_clinical_panel.vcf
-```
-
-### 3. Modo Headless (Simulación sin interfaz gráfica)
-```bash
+./build/genome_forge --vcf data/1000genomes_clinical_panel.vcf --headless --ticks 50 --export-csv
+# o utilizando el atajo del Makefile:
 make headless
-# o con parámetros personalizados:
-./build/genome_forge --vcf data/1000genomes_clinical_panel.vcf --headless --ticks 100 --export-csv
 ```
 
-### 4. Inspector de Estado en Vivo (para CLI o Agentes IA)
+### 2. Inspector de Estado en Vivo (IPC para Agentes IA)
+La aplicación serializa atómicamente su estado global en `data/live_state.json` cada 2 ticks de cómputo (utilizando escritura a archivo temporal `.tmp` y renombrado atómico para garantizar cero corrupciones por concurrencia).
+
+Cualquier agente IA o script de terminal puede inspeccionar el estado actual ejecutando:
 ```bash
 make inspect
-# o inspeccionando un snapshot específico:
+# o directamente:
 ./build/genome_forge --inspect data/live_state.json
 ```
 
-Para consultar todas las opciones de línea de comandos:
+El informe JSON proporciona:
+* Índices de pestaña y locus clínico activo (*TP53*, *CDKN2A*, etc.).
+* Telemetría de hardware (chips M-Series, uso de CPU, RAM unificada).
+* Variables continuas del solver ODE ($P, S, I, p_{53}, p_{21}, R\text{-Score}$).
+* Estadísticas del Router MoE y latencia de aceleradores (vDSP / Metal GPU).
+* Candidatos CRISPR seleccionados y scoring de eficacia.
+* Censo biológico del gemelo digital (células por fenotipo, confluencia, índice mitótico, escala temporal activa).
+
+### 3. Exportador Científico a CSV
+Al presionar la tecla `[X]` en la TUI o activar `--export-csv`, se generan en la carpeta `data/`:
+1. `export_cell_census_<timestamp>.csv`: Confluencia, índice mitótico, recuento poblacional y R-Score medio en función del tiempo.
+2. `export_cell_agents_<timestamp>.csv`: Censo microscópico unicelular con coordenadas $(X, Y)$, velocidades $(V_x, V_y)$, fases del ciclo ($G_0, G_1, S, G_2, M$), fenotipo, estado de clivaje y nivel de $p_{53}$.
+3. `export_genomic_variants_<timestamp>.csv`: Catálogo de variantes del panel con alelos REF/ALT, profundidad $DP$, frecuencia $AF$ y scoring ClinVar.
+
+---
+
+## 7. Integración Multi-Locus con el Proyecto 1000 Genomas
+
+Para validar las simulaciones frente a datos genómicos reales de población humana, GenomeForge-TUI incorpora un catálogo multi-locus compatible con el **1000 Genomes Project** (GRCh38 / hg38):
+
+| Locus | Coordenada Genómica (GRCh38) | Relevancia Biológica y Clínica |
+| :--- | :--- | :--- |
+| **TP53** | Chr17: 7,668,402 - 7,687,550 | Guardián del genoma; colisión directa con Yamanaka OSKM. |
+| **CDKN2A** | Chr9: 21,967,751 - 21,995,300 | Barrera fisiológica de senescencia celular (p16INK4a / p14ARF). |
+| **PTEN** | Chr10: 87,862,566 - 87,971,930 | Fosfatasa supresora de proliferación vía señalización PI3K/AKT. |
+| **MYC** | Chr8: 127,735,434 - 127,742,951 | Proto-oncogén y factor de reprogramación OSKM (c-Myc). |
+| **BRCA1** | Chr17: 43,044,295 - 43,125,483 | Reparación de roturas de doble hebra por recombinación homóloga. |
+| **EGFR** | Chr7: 55,019,017 - 55,211,628 | Receptor tirosina quinasa impulsor de proliferación celular. |
+| **POU5F1** | Chr6: 31,164,335 - 31,170,694 | Factor de transcripción maestro nuclear de pluripotencia (Oct4). |
+| **SOX2** | Chr3: 181,711,925 - 181,714,436 | Factor central del mantenimiento de células madre pluripotentes. |
+
+* **Conmutación en Caliente (`[L]`):** Permite ciclar en tiempo real entre estos 8 genes en la pestaña `[2] VCF EXPLORER`, reconfigurando automáticamente el contexto mutacional del paciente, el solver ODE y el diseño de guías CRISPR.
+* **Descargador de Slices Indexados:** El script `scripts/fetch_1000genomes_slice.sh` permite extraer regiones específicas vía HTTP Range Requests contra AWS S3 (`https://s3.amazonaws.com/1000genomes`) sin descargar terabytes de archivos brutos.
+
+---
+
+## 8. Requisitos, Compilación y Referencia CLI
+
+### Requisitos del Sistema
+* **Hardware:** Mac con procesador Apple Silicon (M1, M2, M3, M4 o variantes Pro/Max/Ultra).
+* **Sistema Operativo:** macOS 14 (Sonoma) o macOS 15 (Sequoia) o superior.
+* **Compilador:** Clang compatible con C++20 (incluido en Xcode Command Line Tools).
+* **Gestor de Construcción:** CMake 3.20+ y Make.
+* **Frameworks Nativos:** `Accelerate`, `Metal`, `Foundation`.
+
+### Compilación Rápida
 ```bash
-./build/genome_forge --help
+# Compilar binario optimizado (-O3) para Apple Silicon ARM64
+make build
+
+# Limpiar artefactos de compilación
+make clean
+```
+
+### Opciones de Línea de Comandos (CLI)
+```text
+Uso:
+  ./build/genome_forge [opciones]
+
+Opciones Principales:
+  --vcf <archivo.vcf>    Ruta al archivo VCF de entrada (default: data/sample_patient.vcf)
+  --headless             Ejecuta la simulación en modo headless (sin interfaz TUI)
+  --ticks <N>            Número de iteraciones a ejecutar en modo headless (default: 30)
+  --snapshot <path>      Ruta del archivo JSON de telemetría (default: data/live_state.json)
+  --inspect [path]       Inspecciona el estado de la TUI en vivo y muestra reporte HUD
+  --export-csv           Fuerza la exportación de datasets CSV al finalizar
+  --help, -h             Muestra la ayuda detallada del sistema
 ```
 
 ---
 
-## 🎮 Navegación y Controles por Pestañas
+## 9. Tabla de Atajos de Teclado
 
-| Atajo | Acción |
+| Tecla / Atajo | Función y Efecto Biológico |
 | :---: | :--- |
-| **`1`** | Pestaña **`[1] DASHBOARD`**: Resumen clínico del paciente, monitor R-Score, estado del pulso y auditoría. |
-| **`2`** | Pestaña **`[2] VCF EXPLORER`**: Tabla genómica a pantalla completa, frecuencias alélicas, cobertura DP y conmutación de locus con `[L]`. |
-| **`3`** | Pestaña **`[3] YAMANAKA (OSKM)`**: Ecuaciones diferenciales continuas ODE, niveles de factores OSKM y gráfica sparkline del R-Score. |
-| **`4`** | Pestaña **`[4] MoE ROUTER`**: Arquitectura Mixture of Experts, pesos de la Gating Network, selección Top-2 y telemetría vDSP (CPU) vs Metal (GPU). |
-| **`5`** | Pestaña **`[5] CRISPR STUDIO`**: Catálogo de ARNs guía (gRNA), análisis PAM NGG, scoring Cas-OFFinder y control de corte HDR. |
-| **`6`** | Pestaña **`[6] SYSTEM & LOGS`**: Telemetría granular por núcleo de CPU (P-Cores vs E-Cores), páginas de memoria unificada y log de auditoría. |
-| **`7`** | Pestaña **`[7] DIGITAL TWIN`**: Placa de Petri virtual en 2D, dinámica de poblaciones, citomorfología, Time Warp y rescate CRISPR. |
-| **`Tab`** | Ciclar ordenadamente a la siguiente pestaña. |
-| **`[` / `]`** | **Time Warp:** Desacelerar / acelerar la velocidad de simulación biológica (Segundos a Décadas). |
-| **`X`** | **Exportar CSV:** Guarda datasets científicos de censo, agentes y variantes en `data/`. |
-| **`L`** | **Conmutar Locus Clínico:** Cicla entre *TP53*, *CDKN2A*, *PTEN*, *MYC*, *BRCA1*, *EGFR*, *OCT4*, *SOX2*. |
-| **`D`** | **Doxiciclina OSKM:** Inyecta o retira el inductor de reprogramación en el medio de cultivo. |
-| **`C`** | **CRISPR In-Situ:** Terapia génica en caliente para rescatar mutaciones en el cultivo del gemelo digital. |
-| **`U`** | **Estrés Genotóxico:** Dispara irradiación UV para poner a prueba los puntos de control de p53. |
-| **`+` / `-`** | Inocular / aspirar células en el cultivo de la placa de Petri (±25). |
-| **`↑` / `↓` o `k` / `j`** | Navegar por la tabla de variantes (pestaña 2) o por la lista de guías CRISPR (pestaña 5). |
-| **`E`** | **Corrección CRISPR virtual (HDR):** Aplica reparación in-silico sobre la variante VCF seleccionada. |
-| **`R`** | **Reiniciar:** Restablece el cultivo celular (en Tab 7) o restablece el genoma original del paciente. |
-| **`Espacio`** | Pausar o reanudar dinámica celular y ODEs. |
-| **`Q` o `Esc`** | Salir limpiamente de la aplicación. |
+| **`1` .. `7`** | Salto directo a cualquiera de las 7 pestañas del Cyber-HUD. |
+| **`Tab`** | Ciclar secuencialmente a la siguiente pestaña. |
+| **`[`** | **Frenar Time Warp:** Reduce la escala temporal biológica (ej. Horas -> Minutos -> Segundos). |
+| **`]`** | **Acelerar Time Warp:** Incrementa la escala temporal biológica (ej. Días -> Semanas -> Años -> Décadas). |
+| **`X`** | **Exportar Datasets CSV:** Guarda censo, células individuales y variantes en `data/`. |
+| **`L`** | **Conmutar Locus 1000G:** Alterna entre *TP53*, *CDKN2A*, *PTEN*, *MYC*, *BRCA1*, *EGFR*, *OCT4*, *SOX2*. |
+| **`D`** | **Doxiciclina (OSKM):** Inyecta o suspende el inductor de reprogramación en el cultivo celular. |
+| **`C`** | **CRISPR In-Situ:** Administra terapia génica en la placa de Petri para corregir mutaciones de *TP53*. |
+| **`U`** | **Estrés Genotóxico:** Dispara un pulso de radiación UV para poner a prueba los puntos de control. |
+| **`+` / `-`** | Inocular / aspirar células del cultivo virtual de la placa de Petri (±25 células). |
+| **`↑` / `↓` o `k` / `j`** | Navegar verticalmente por listas de variantes VCF o candidatos gRNA CRISPR. |
+| **`E`** | **Edición CRISPR (HDR):** Aplica corrección in-silico por homología sobre la variante VCF seleccionada. |
+| **`R`** | **Reset Basal:** Restaura el cultivo celular (en Tab 7) o reinyecta la mutación en el genoma original. |
+| **`Espacio`** | Pausar o reanudar el avance temporal de los motores biológicos y la biofísica. |
+| **`Q` o `Esc`** | Salida limpia del programa. |
 
 ---
 
-## 🔬 Motores Científicos y Matemáticos
+## 10. Documentación y Referencias Técnicas
 
-### Sistema Dinámico de Reprogramación (Yamanaka ODEs)
-Modelado a través de un sistema diferencial de 5 ecuaciones acopladas resueltas mediante **Runge-Kutta 4 (RK4)**:
-$$\frac{dP}{dt} = k_{p1} [\text{Oct4}][\text{Sox2}] + k_{p2} [\text{Klf4}] - \gamma_p P$$
-$$\frac{dS}{dt} = k_{s1} [\text{c-Myc}] \cdot p_{53} + k_{s2} [\text{Klf4}] - \gamma_s S$$
-$$\frac{dI}{dt} = k_{i1} [\text{c-Myc}]^2 \cdot (1 - p_{53}) + k_{i2} \cdot \text{Burden} - \gamma_i I$$
+* [`docs/SPECS.md`](docs/SPECS.md): Especificación técnica formal, structs alineados a caché ARM64, derivaciones matemáticas de ODEs, kernels de Metal y arquitectura del sistema.
+* [`docs/BITACORA.md`](docs/BITACORA.md): Bitácora cronológica viva de ingeniería con todos los registros de desarrollo (*devlog*), decisiones técnicas y benchmarks de rendimiento.
 
-### Métrica de Riesgo Oncogénico (R-Score)
-$$R(t) = w_1 \cdot I(t) + w_2 \cdot \frac{[\text{c-Myc}](t)}{p_{53}(t) + \epsilon} + w_3 \cdot \text{Burden}$$
-* $R < 0.25$: Estado seguro / reprogramación fisiológica viable.
-* $0.25 \le R < 0.60$: Estrés replicativo moderado.
-* $R \ge 0.60$: Alerta neoplásica crítica / pérdida de apoptosis.
-
----
-
-## 🧬 Integración con el Proyecto 1000 Genomas
-
-Para calibrar el sistema con datos de secuenciación humana real sin saturar el almacenamiento con terabytes de datos brutos, se incluye un extractor automatizado de *slices* indexados de alta fidelidad:
-
-```bash
-# Descargar/generar slice auténtico de TP53 (Chr 17) y CDKN2A (Chr 9)
-./scripts/fetch_1000genomes_slice.sh
-```
-
-El dataset resultante en `data/1000genomes_clinical_panel.vcf` contiene polimorfismos reales con metadatos estándar de 1000 Genomas Phase 3 (GRCh38).
-
----
-
-## 📚 Documentación Adicional
-
-* [`docs/SPECS.md`](docs/SPECS.md): Especificación técnica exhaustiva, diseño de structs ARM64, ecuaciones matemáticas y arquitectura de software.
-* [`docs/BITACORA.md`](docs/BITACORA.md): Bitácora viva de desarrollo con el registro cronológico de decisiones de ingeniería, hitos y benchmarks de hardware.
 
