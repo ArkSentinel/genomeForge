@@ -77,6 +77,14 @@ void VcfParser::parse_line(const std::string& line) {
         }
     }
 
+    // Si el VCF proviene de 1000 Genomas sin tag GENE= explícito, mapear por coordenadas
+    if (gene_found == "UNKNOWN" || gene_found.empty()) {
+        const auto* mapped = LocusCatalog::find_by_coordinate(var.chrom_id, var.pos);
+        if (mapped) {
+            gene_found = mapped->gene_symbol;
+        }
+    }
+
     std::strncpy(var.gene_symbol, gene_found.c_str(), sizeof(var.gene_symbol) - 1);
     var.allele_frequency = af_val;
     var.depth = dp_val;
@@ -104,9 +112,13 @@ void VcfParser::parse_line(const std::string& line) {
                clnsig_found.find("Benign") != std::string::npos) {
         var.effect = VariantEffect::Benign;
         var.pathogenicity_score = 0.05f;
+    } else if (clnsig_found.empty() && af_val >= 0.01f) {
+        // En 1000 Genomas crudo, un polimorfismo común de población sana (AF >= 1%) es benigno / wild-type
+        var.effect = VariantEffect::Benign;
+        var.pathogenicity_score = 0.02f;
     } else {
         var.effect = VariantEffect::Uncertain;
-        var.pathogenicity_score = 0.30f;
+        var.pathogenicity_score = 0.25f;
     }
 
     variants_.push_back(var);
@@ -119,6 +131,22 @@ bool VcfParser::load_file(const std::string& filepath) {
     yamanaka_collision_count_ = 0;
 
     std::ifstream file(filepath);
+    if (!file.is_open()) {
+        // Fallbacks para resolver rutas relativas al ejecutar desde build/ u otras carpetas
+        std::vector<std::string> fallbacks = {
+            "../" + filepath,
+            "data/" + filepath,
+            "../data/" + filepath
+        };
+        for (const auto& alt : fallbacks) {
+            file.open(alt);
+            if (file.is_open()) {
+                filepath_ = alt;
+                break;
+            }
+        }
+    }
+
     if (!file.is_open()) {
         loaded_ = false;
         return false;

@@ -268,6 +268,36 @@ Este documento registra cronológicamente las decisiones de diseño, hitos de im
   * Verificación de serialización JSON con `make headless` y `make inspect`.
   * Verificación de cero emojis con analizador unicode exhaustivo sobre todo el repositorio.
 
+---
+
+### Entrada #010: Ingesta de 1000 Genomas, Mapeo por Coordenadas Genómicas, Control Sano vs. Paciente Clínico y Robustez de Rutas
+* **Fecha:** 2026-09-04
+* **Objetivo:**
+  1. Resolver la discrepancia sobre por qué 1000 Genomas siempre reportaba "errores patogénicos / colisiones": clarificar y desacoplar la muestra oncológica clínica del paciente del dataset de control de población sana del Proyecto 1000 Genomas (HG00096).
+  2. Implementar mapeo automático por coordenadas genómicas (`LocusCatalog::find_by_coordinate(chrom_id, pos)`) en `VcfParser` para que cualquier archivo VCF crudo de 1000 Genomas (sin tags `GENE=` ni `CLNSIG=`) identifique automáticamente los genes diana.
+  3. Clasificar correctamente los polimorfismos poblacionales comunes ($AF \ge 1\%$) como benignos / estables (`VariantEffect::Benign`) en lugar de reportar falsas colisiones.
+  4. Crear el dataset oficial de control sano: `data/1000genomes_healthy_reference.vcf` con 16 variantes poblacionales reales de `HG00096` en los 8 loci clínicos (0 colisiones, R-Score seguro de 0.08).
+  5. Implementar conmutación interactiva de muestras con la tecla `[M]` en la TUI: alternar entre el Paciente Clínico (con mutaciones para rescate CRISPR `[E]`) y el Control Sano de 1000 Genomas.
+  6. Añadir resolución robusta de rutas relativas con fallbacks en `VcfParser` y creación automática de directorios en `StateInspector` para evitar fallos al ejecutar desde `build/`.
+  7. Actualizar `scripts/fetch_1000genomes_slice.sh` y el `Makefile` con objetivos dedicados (`make run-1000g`, `make fetch`).
+* **Componentes Implementados:**
+  1. **Mapeo por Coordenadas en `vcf_parser.cpp`:**
+     * Si el VCF no contiene el tag `GENE=` en la columna INFO (caso universal de los archivos crudos de 1000 Genomas), el parser consulta `LocusCatalog::find_by_coordinate(chrom_id, pos)` y asigna el símbolo génico oficial.
+     * Si no contiene `CLNSIG=` y la frecuencia alélica global $AF \ge 0.01$, se clasifica como polimorfismo natural benigno (`VariantEffect::Benign`).
+  2. **Resolución de Rutas Relativas:**
+     * `VcfParser::load_file` ahora evalúa rutas alternativas (`filepath`, `../filepath`, `data/filepath`, `../data/filepath`) asegurando carga exitosa sin importar el directorio de trabajo del proceso.
+     * `StateInspector::dump_live_state_json` invoca `std::filesystem::create_directories` para garantizar que la carpeta de destino exista.
+  3. **Conmutador de Muestras en TUI (`[M]`):**
+     * En la pestaña `[2] VCF EXPLORER` y barra de pie, el atajo `[M]` alterna dinámicamente entre la muestra de paciente y el control sano de 1000 Genomas, actualizando en caliente el solver de Yamanaka y las guías CRISPR.
+  4. **Script `scripts/fetch_1000genomes_slice.sh`:**
+     * Habilitación del flag `--remote` con verificación de conectividad HTTP Range Requests contra `https://s3.amazonaws.com/1000genomes` y generación dual (control sano vs. panel clínico).
+* **Validación:**
+  * `make build` completado exitosamente con Apple Clang C++20.
+  * Verificación con `1000genomes_healthy_reference.vcf`: 16 variantes, 0 patogénicas, 0 colisiones, R-Score = 0.0800 (verde / seguro).
+  * Verificación con `sample_patient.vcf`: 8 variantes, 6 patogénicas, 3 colisiones, R-Score = 0.8073 (rojo / rescate CRISPR activo).
+  * Cero emojis verificado mediante script de escaneo unicode.
+
+
 
 
 

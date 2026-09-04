@@ -326,8 +326,13 @@ Para validar las simulaciones frente a datos genómicos reales de población hum
 | **POU5F1** | Chr6: 31,164,335 - 31,170,694 | Factor de transcripción maestro nuclear de pluripotencia (Oct4). |
 | **SOX2** | Chr3: 181,711,925 - 181,714,436 | Factor central del mantenimiento de células madre pluripotentes. |
 
-* **Conmutación en Caliente (`[L]`):** Permite ciclar en tiempo real entre estos 8 genes en la pestaña `[2] VCF EXPLORER`, reconfigurando automáticamente el contexto mutacional del paciente, el solver ODE y el diseño de guías CRISPR.
-* **Descargador de Slices Indexados:** El script `scripts/fetch_1000genomes_slice.sh` permite extraer regiones específicas vía HTTP Range Requests contra AWS S3 (`https://s3.amazonaws.com/1000genomes`) sin descargar terabytes de archivos brutos.
+* **Mapeo Inteligente por Coordenadas Genómicas (GRCh38):** Los archivos VCF brutos del consorcio 1000 Genomes no contienen etiquetas informativas `GENE=` en la columna `INFO`. `VcfParser` y `LocusCatalog` resuelven la pertenencia a los loci clínicos mediante resolución de intervalos por coordenadas cromosómicas en GRCh38.
+* **Clasificación Poblacional y Controles Sanos ($AF \ge 0.01$):** Los donantes del 1000 Genomes Project son controles poblacionales sanos. El motor bioinformático clasifica automáticamente las variantes con frecuencia alélica común ($AF \ge 0.01$) sin anotación clínica de riesgo como polimorfismos naturales benignos (`[+] STABLE / WILD-TYPE`), resultando en $0$ colisiones de Yamanaka y un R-Score basal verde (< 0.10).
+* **Conmutador de Muestras (`[M]`):** Permite alternar en tiempo real entre:
+  * **Modo Paciente Clínico (`data/sample_patient.vcf`):** Perfil con mutaciones conductoras (*TP53* p.R175H, *CDKN2A*) para evaluar riesgo oncogénico alto y probar rescates CRISPR HDR.
+  * **Modo 1000 Genomas Control Sano (`data/1000genomes_healthy_reference.vcf`):** Perfil de control poblacional sano (`HG00096`) con polimorfismos naturales benignos y estabilidad genómica garantizada.
+* **Conmutación en Caliente de Locus (`[L]`):** Permite ciclar en tiempo real entre los 8 genes clínicos en la pestaña `[2] VCF EXPLORER`, reconfigurando automáticamente el contexto mutacional, el solver ODE y el diseño de guías CRISPR.
+* **Descargador de Slices Indexados:** El script `scripts/fetch_1000genomes_slice.sh` permite validar el bucket AWS S3 (`https://s3.amazonaws.com/1000genomes`) y generar slices indexados con polimorfismos poblacionales o paneles clínicos.
 
 ---
 
@@ -382,6 +387,7 @@ Opciones Principales:
 | **`]`** | **Acelerar Time Warp:** Incrementa la escala temporal biológica (ej. Días -> Semanas -> Años -> Décadas). |
 | **`X`** | **Exportar Datasets CSV:** Guarda censo, células individuales y variantes en `data/`. |
 | **`L`** | **Conmutar Locus 1000G:** Alterna entre *TP53*, *CDKN2A*, *PTEN*, *MYC*, *BRCA1*, *EGFR*, *OCT4*, *SOX2*. |
+| **`M`** | **Conmutar Muestra:** Alterna entre Paciente Clínico (mutado) y Control Sano 1000 Genomas (HG00096). |
 | **`D`** | **Doxiciclina (OSKM):** Inyecta o suspende el inductor de reprogramación en el cultivo celular. |
 | **`C`** | **CRISPR In-Situ:** Administra terapia génica en la placa de Petri para corregir mutaciones de *TP53*. |
 | **`U`** | **Estrés Genotóxico:** Dispara un pulso de radiación UV para poner a prueba los puntos de control. |

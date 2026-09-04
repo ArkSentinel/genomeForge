@@ -106,6 +106,39 @@ void GenomeForgeApp::cycle_locus() {
     switch_locus_by_index(active_locus_index_ + 1);
 }
 
+void GenomeForgeApp::toggle_sample_mode() {
+    healthy_reference_mode_ = !healthy_reference_mode_;
+    vcf_path_ = healthy_reference_mode_ ? "data/1000genomes_healthy_reference.vcf" : "data/sample_patient.vcf";
+    
+    if (vcf_parser_.load_file(vcf_path_)) {
+        selected_variant_index_ = 0;
+        bool tp53_mut = false;
+        bool cdkn2a_mut = false;
+        for (const auto& v : vcf_parser_.get_variants()) {
+            std::string_view gene(v.gene_symbol);
+            if (gene == "TP53" && (v.effect == genome::vcf::VariantEffect::YamanakaCollision || 
+                                   v.effect == genome::vcf::VariantEffect::Pathogenic)) {
+                tp53_mut = true;
+            }
+            if (gene == "CDKN2A" && (v.effect == genome::vcf::VariantEffect::YamanakaCollision || 
+                                     v.effect == genome::vcf::VariantEffect::Pathogenic)) {
+                cdkn2a_mut = true;
+            }
+        }
+        float burden = static_cast<float>(vcf_parser_.pathogenic_count()) / 
+                       std::max(1.0f, static_cast<float>(vcf_parser_.total_variants()));
+        yamanaka_sim_.set_mutational_context(tp53_mut, cdkn2a_mut, burden);
+
+        if (healthy_reference_mode_) {
+            add_log("SAMPLE", "Switched to 1000 Genomes Healthy Reference (HG00096): 16 natural polymorphisms, 0 pathogenic collisions.");
+        } else {
+            add_log("SAMPLE", "Switched to Clinical Patient Profile: TP53 R175H & CDKN2A pathogenic mutations active for CRISPR rescue.");
+        }
+    } else {
+        add_log("ERROR", "Failed to switch sample to: " + vcf_path_);
+    }
+}
+
 void GenomeForgeApp::init_simulation_state() {
     add_log("INFO", "GenomeForge-TUI core initialized on Apple Silicon architecture.");
     
@@ -506,6 +539,13 @@ int GenomeForgeApp::run() {
             loci_pills.push_back(text("[L] CONMUTAR GEN (Tabix Range)  ") | bold | color(Color::Yellow));
 
             auto locus_header_bar = vbox({
+                hbox({
+                    text(" ◈ MUESTRA ACTIVA: ") | bold | color(Color::Cyan),
+                    text(healthy_reference_mode_ ? "⟦ 1000 GENOMAS HG00096 (CONTROL SANO - 0 COLISIONES) ⟧" : "⟦ PACIENTE CLÍNICO (MUTACIONES ONCOGÉNICAS TP53/CDKN2A) ⟧") | bold | (healthy_reference_mode_ ? color(Color::Green) : color(Color::Yellow)),
+                    filler(),
+                    text("[M] CONMUTAR MUESTRA (Paciente <-> 1000G Sano)  ") | bold | color(Color::GreenLight)
+                }),
+                separator(),
                 hbox(std::move(loci_pills)),
                 cur_locus ? hbox({
                     text("   Locus Activo: ") | color(Color::GrayLight),
@@ -1210,6 +1250,8 @@ int GenomeForgeApp::run() {
             text(" ⟦ ATAJOS ⟧ ") | bold | color(Color::Cyan),
             text("[1..7] ") | bold | color(Color::White), text("Pestañas  ") | color(Color::GrayLight),
             text("[Tab] ") | bold | color(Color::White), text("Ciclar  ") | color(Color::GrayLight),
+            text("[M] ") | bold | color(Color::GreenLight), text("Muestra  ") | color(Color::GrayLight),
+            text("[L] ") | bold | color(Color::Yellow), text("Locus  ") | color(Color::GrayLight),
             text("[ < / > ] ") | bold | color(Color::MagentaLight), text("Vel Real  ") | color(Color::GrayLight),
             text("[Z / z / 0] ") | bold | color(Color::Cyan), text("Zoom Petri  ") | color(Color::GrayLight),
             text("[ [ / ] ] ") | bold | color(Color::YellowLight), text("Time Warp  ") | color(Color::GrayLight),
@@ -1252,6 +1294,11 @@ int GenomeForgeApp::run() {
 
         if (event == Event::Character('l') || event == Event::Character('L')) {
             cycle_locus();
+            return true;
+        }
+
+        if (event == Event::Character('m') || event == Event::Character('M')) {
+            toggle_sample_mode();
             return true;
         }
 

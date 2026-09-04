@@ -59,8 +59,10 @@ private:
     void tick_simulation();
     void switch_locus_by_index(size_t index);
     void cycle_locus();
+    void toggle_sample_mode();
     void save_live_state();
 
+    bool healthy_reference_mode_{false};
     size_t tick_counter_{0};
     size_t sim_speed_multiplier_{1};
     float petri_zoom_{1.0f};

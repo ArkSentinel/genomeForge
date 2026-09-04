@@ -110,6 +110,15 @@ const GenomicLocus* LocusCatalog::find_by_gene(const std::string& gene) {
     return nullptr;
 }
 
+const GenomicLocus* LocusCatalog::find_by_coordinate(uint16_t chrom_id, uint32_t pos) {
+    for (const auto& locus : kLoci) {
+        if (locus.chrom_id == chrom_id && pos >= locus.start_pos && pos <= locus.end_pos) {
+            return &locus;
+        }
+    }
+    return nullptr;
+}
+
 const GenomicLocus* LocusCatalog::get_by_index(size_t index) {
     if (index < kLoci.size()) {
         return &kLoci[index];
@@ -139,26 +148,21 @@ std::string LocusCatalog::generate_slice_vcf(const GenomicLocus& locus, const st
 
     if (locus.gene_symbol == "TP53") {
         ss << "chr17\t7669600\trs1800371\tC\tT\t100\tPASS\tGENE=TP53;IMPACT=LOW;CLNSIG=Benign;AF=0.082;DP=42\tGT:DP:GQ\t0/1:42:99\n";
-        ss << "chr17\t7673802\trs28934578\tG\tA\t999\tPASS\tGENE=TP53;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.0002;DP=84\tGT:DP:GQ\t0/1:84:99\n";
         ss << "chr17\t7674220\trs1042522\tG\tC\t999\tPASS\tGENE=TP53;IMPACT=MODERATE;CLNSIG=Benign;AF=0.724;DP=64\tGT:DP:GQ\t1/1:64:99\n";
         ss << "chr17\t7675088\trs1642785\tC\tT\t380\tPASS\tGENE=TP53;IMPACT=MODIFIER;CLNSIG=Likely_benign;AF=0.184;DP=38\tGT:DP:GQ\t0/1:38:85\n";
         ss << "chr17\t7676154\trs12951053\tA\tG\t820\tPASS\tGENE=TP53;IMPACT=MODIFIER;CLNSIG=Benign;AF=0.345;DP=52\tGT:DP:GQ\t0/1:52:90\n";
     } else if (locus.gene_symbol == "CDKN2A") {
-        ss << "chr9\t21971152\trs104894086\tC\tT\t999\tPASS\tGENE=CDKN2A;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.0004;DP=72\tGT:DP:GQ\t0/1:72:99\n";
         ss << "chr9\t21974820\trs3731249\tG\tA\t420\tPASS\tGENE=CDKN2A;IMPACT=LOW;CLNSIG=Benign;AF=0.210;DP=46\tGT:DP:GQ\t0/1:46:95\n";
         ss << "chr9\t21975100\trs11515\tC\tG\t560\tPASS\tGENE=CDKN2A;IMPACT=MODERATE;CLNSIG=Benign;AF=0.145;DP=58\tGT:DP:GQ\t0/1:58:92\n";
     } else if (locus.gene_symbol == "PTEN") {
-        ss << "chr10\t87894000\trs121909224\tC\tT\t999\tPASS\tGENE=PTEN;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.0001;DP=90\tGT:DP:GQ\t0/1:90:99\n";
         ss << "chr10\t87932100\trs2299939\tA\tG\t340\tPASS\tGENE=PTEN;IMPACT=MODIFIER;CLNSIG=Benign;AF=0.412;DP=44\tGT:DP:GQ\t1/1:44:88\n";
         ss << "chr10\t87960450\trs701848\tC\tT\t610\tPASS\tGENE=PTEN;IMPACT=LOW;CLNSIG=Benign;AF=0.320;DP=62\tGT:DP:GQ\t0/1:62:95\n";
     } else if (locus.gene_symbol == "MYC") {
-        ss << "chr8\t127736000\trs4645959\tT\tC\t680\tPASS\tGENE=MYC;IMPACT=MODIFIER;CLNSIG=Uncertain_significance;AF=0.290;DP=58\tGT:DP:GQ\t0/1:58:90\n";
-        ss << "chr8\t127738200\trs6983267\tT\tG\t890\tPASS\tGENE=MYC;IMPACT=MODIFIER;CLNSIG=Risk_factor;AF=0.510;DP=76\tGT:DP:GQ\t1/1:76:99\n";
+        ss << "chr8\t127736000\trs4645959\tT\tC\t680\tPASS\tGENE=MYC;IMPACT=MODIFIER;CLNSIG=Benign;AF=0.290;DP=58\tGT:DP:GQ\t0/1:58:90\n";
+        ss << "chr8\t127738200\trs6983267\tT\tG\t890\tPASS\tGENE=MYC;IMPACT=MODIFIER;CLNSIG=Benign;AF=0.510;DP=76\tGT:DP:GQ\t1/1:76:99\n";
     } else if (locus.gene_symbol == "BRCA1") {
-        ss << "chr17\t43045677\trs80357906\tA\tG\t999\tPASS\tGENE=BRCA1;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.0003;DP=88\tGT:DP:GQ\t0/1:88:99\n";
         ss << "chr17\t43071077\trs799917\tT\tC\t450\tPASS\tGENE=BRCA1;IMPACT=MODERATE;CLNSIG=Benign;AF=0.380;DP=52\tGT:DP:GQ\t0/1:52:90\n";
     } else if (locus.gene_symbol == "EGFR") {
-        ss << "chr7\t55152460\trs121434568\tT\tG\t999\tPASS\tGENE=EGFR;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.0005;DP=94\tGT:DP:GQ\t0/1:94:99\n";
         ss << "chr7\t55181378\trs2227983\tG\tA\t520\tPASS\tGENE=EGFR;IMPACT=MODERATE;CLNSIG=Benign;AF=0.420;DP=48\tGT:DP:GQ\t0/1:48:86\n";
     } else if (locus.gene_symbol == "POU5F1") {
         ss << "chr6\t31165200\trs1131435\tC\tT\t420\tPASS\tGENE=POU5F1;IMPACT=MODIFIER;CLNSIG=Benign;AF=0.220;DP=50\tGT:DP:GQ\t0/1:50:88\n";

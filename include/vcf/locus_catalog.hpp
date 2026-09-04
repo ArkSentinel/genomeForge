@@ -27,6 +27,9 @@ public:
     // Búsqueda por símbolo genético
     static const GenomicLocus* find_by_gene(const std::string& gene);
 
+    // Búsqueda por coordenadas genómicas (Chr y posición de pares de bases)
+    static const GenomicLocus* find_by_coordinate(uint16_t chrom_id, uint32_t pos);
+
     // Búsqueda por índice
     static const GenomicLocus* get_by_index(size_t index);
     static size_t total_loci();

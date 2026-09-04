@@ -13,8 +13,14 @@ build: $(BUILD_DIR)/Makefile
 run: build
 	./$(BUILD_DIR)/genome_forge --vcf data/sample_patient.vcf
 
+run-1000g: build
+	./$(BUILD_DIR)/genome_forge --vcf data/1000genomes_healthy_reference.vcf
+
+fetch:
+	./scripts/fetch_1000genomes_slice.sh
+
 headless: build
-	./$(BUILD_DIR)/genome_forge --vcf data/1000genomes_clinical_panel.vcf --headless --ticks 50 --export-csv
+	./$(BUILD_DIR)/genome_forge --vcf data/1000genomes_healthy_reference.vcf --headless --ticks 50 --export-csv
 
 inspect: build
 	./$(BUILD_DIR)/genome_forge --inspect
@@ -22,4 +28,4 @@ inspect: build
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: all build run headless inspect clean
+.PHONY: all build run run-1000g fetch headless inspect clean

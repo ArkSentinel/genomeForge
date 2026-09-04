@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <cstdio>
 #include <chrono>
+#include <filesystem>
 
 namespace genome::ipc {
 
@@ -25,6 +26,13 @@ bool StateInspector::dump_live_state_json(
     float petri_pan_x,
     float petri_pan_y
 ) {
+    // Asegurar que el directorio contenedor exista
+    std::filesystem::path out_p(filepath);
+    if (out_p.has_parent_path()) {
+        std::error_code ec;
+        std::filesystem::create_directories(out_p.parent_path(), ec);
+    }
+
     std::string temp_path = filepath + ".tmp";
     std::ofstream out(temp_path);
     if (!out.is_open()) return false;
@@ -121,6 +129,18 @@ bool StateInspector::dump_live_state_json(
 
 bool StateInspector::print_inspection_report(const std::string& filepath) {
     std::ifstream in(filepath);
+    if (!in.is_open()) {
+        std::vector<std::string> fallbacks = {
+            "../" + filepath,
+            "data/" + filepath,
+            "../data/live_state.json"
+        };
+        for (const auto& alt : fallbacks) {
+            in.open(alt);
+            if (in.is_open()) break;
+        }
+    }
+
     if (!in.is_open()) {
         std::cerr << "[!] Error: No active simulation telemetry found at " << filepath << std::endl;
         std::cerr << "    Run GenomeForge-TUI first to generate live telemetry state." << std::endl;
