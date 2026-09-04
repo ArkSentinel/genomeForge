@@ -428,8 +428,20 @@ Este documento registra cronológicamente las decisiones de diseño, hitos de im
   - Inspección con `sqlite3 data/genome_forge.db` validando integridad de tablas e inserciones.
   - Verificación estricta de CERO EMOJIS en todos los archivos del repositorio.
 
+---
 
-
-
-
-
+### Entrada #014: Consolidación de Licencia Abierta MIT y Evaluación de Benchmark de Enfermedades Raras (v2.4.1)
+* **Fecha:** 2026-09-04
+* **Objetivo:**
+  1. Restablecer formalmente la licencia de código abierto MIT License en `LICENSE` y `README.md` a solicitud del autor (ArkSentinel), garantizando la máxima permisividad y facilidad de adopción por la comunidad científica y médica abierta.
+  2. Evaluar la viabilidad técnica y casos de uso del repositorio de referencia `EmilyAlsentzer/rare-disease-simulation` para pruebas de estrés, triaje genético y validación de algoritmos en GenomeForge-TUI.
+* **Componentes y Cambios Implementados:**
+  1. **Licencia MIT (`LICENSE`, `README.md`):**
+     - Sustitución formal del texto Apache 2.0 por MIT License estándar (Copyright 2026 ArkSentinel).
+     - Actualización de la documentación correspondiente en el `README.md`.
+  2. **Evaluación de `EmilyAlsentzer/rare-disease-simulation`:**
+     - Análisis de arquitectura de pacientes sintéticos no diagnosticados con fenotipos HPO (Human Phenotype Ontology) y genes causales con distractores realistas.
+     - Definición de vías de integración con el motor de priorización `ActionabilityEngine`, triaje en `WorkflowEngine` y pruebas de carga masiva en SQLite.
+* **Validación:**
+  - Verificación estricta de CERO EMOJIS.
+  - Verificación de consistencia legal y técnica.

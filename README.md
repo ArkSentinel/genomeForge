@@ -584,7 +584,7 @@ Opciones Principales:
 
 ## 12. Licencia
 
-Este proyecto está distribuido bajo la licencia de código abierto **Apache License, Version 2.0**. Consulte el archivo [`LICENSE`](LICENSE) para obtener los términos y condiciones completos de uso, modificación, distribución y concesión explícita de patentes.
+Este proyecto está distribuido bajo la licencia de código abierto **MIT License**. Consulte el archivo [`LICENSE`](LICENSE) para obtener los términos y condiciones completos de uso, modificación, copia y distribución libre.
 
 Copyright (c) 2026 ArkSentinel. Todos los derechos reservados.
 
