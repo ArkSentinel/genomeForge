@@ -11,6 +11,7 @@ struct MetalComputeEngine::Impl {
     id<MTLDevice> device{nil};
     id<MTLCommandQueue> commandQueue{nil};
     id<MTLComputePipelineState> pipelineState{nil};
+    id<MTLComputePipelineState> physicsPipelineState{nil};
 };
 
 MetalComputeEngine::MetalComputeEngine()
@@ -43,10 +44,19 @@ bool MetalComputeEngine::initialize() {
             return false;
         }
 
-        // Metal Shading Language (MSL) kernel para multiplicación matricial y enrutamiento MoE
+        // Metal Shading Language (MSL) kernels para MoE GEMM y Física Celular
         NSString* shaderSource = @R"(
             #include <metal_stdlib>
             using namespace metal;
+
+            struct GPUCellParticle {
+                float x;
+                float y;
+                float vx;
+                float vy;
+                float radius;
+                float pad[3];
+            };
 
             kernel void moe_gemm_kernel(
                 device const float* X [[buffer(0)]],
@@ -57,8 +67,8 @@ bool MetalComputeEngine::initialize() {
                 constant uint& M [[buffer(5)]],
                 uint2 gid [[thread_position_in_grid]]
             ) {
-                uint row = gid.y; // índice en N
-                uint col = gid.x; // índice en M
+                uint row = gid.y;
+                uint col = gid.x;
 
                 if (row >= N || col >= M) return;
 
@@ -72,6 +82,58 @@ bool MetalComputeEngine::initialize() {
 
                 Out[row * M + col] = sum;
             }
+
+            kernel void cell_physics_kernel(
+                device GPUCellParticle* particles [[buffer(0)]],
+                constant uint& count [[buffer(1)]],
+                constant float& dt [[buffer(2)]],
+                constant float& dish_radius [[buffer(3)]],
+                uint id [[thread_position_in_grid]]
+            ) {
+                if (id >= count) return;
+
+                GPUCellParticle self = particles[id];
+                float fx = 0.0f;
+                float fy = 0.0f;
+
+                for (uint j = 0; j < count; ++j) {
+                    if (id == j) continue;
+                    float dx = self.x - particles[j].x;
+                    float dy = self.y - particles[j].y;
+                    float dist_sq = dx * dx + dy * dy;
+                    float min_dist = self.radius + particles[j].radius;
+
+                    if (dist_sq < min_dist * min_dist && dist_sq > 0.0001f) {
+                        float dist = sqrt(dist_sq);
+                        float overlap = min_dist - dist;
+                        float force = overlap * 12.0f;
+                        fx += (dx / dist) * force;
+                        fy += (dy / dist) * force;
+                    }
+                }
+
+                // Amortiguamiento de viscosidad en medio líquido
+                fx -= self.vx * 2.0f;
+                fy -= self.vy * 2.0f;
+
+                self.vx += fx * dt;
+                self.vy += fy * dt;
+                self.x += self.vx * dt;
+                self.y += self.vy * dt;
+
+                // Límite circular de la placa de Petri
+                float r_sq = self.x * self.x + self.y * self.y;
+                float max_r = dish_radius - self.radius;
+                if (r_sq > max_r * max_r) {
+                    float r = sqrt(r_sq);
+                    self.x = (self.x / r) * max_r;
+                    self.y = (self.y / r) * max_r;
+                    self.vx = -self.vx * 0.4f;
+                    self.vy = -self.vy * 0.4f;
+                }
+
+                particles[id] = self;
+            }
         )";
 
         NSError* error = nil;
@@ -84,16 +146,21 @@ bool MetalComputeEngine::initialize() {
             return false;
         }
 
-        id<MTLFunction> function = [library newFunctionWithName:@"moe_gemm_kernel"];
-        if (!function) {
+        id<MTLFunction> moeFunction = [library newFunctionWithName:@"moe_gemm_kernel"];
+        if (!moeFunction) {
             initialized_ = false;
             return false;
         }
 
-        pimpl_->pipelineState = [pimpl_->device newComputePipelineStateWithFunction:function error:&error];
+        pimpl_->pipelineState = [pimpl_->device newComputePipelineStateWithFunction:moeFunction error:&error];
         if (!pimpl_->pipelineState) {
             initialized_ = false;
             return false;
+        }
+
+        id<MTLFunction> physicsFunction = [library newFunctionWithName:@"cell_physics_kernel"];
+        if (physicsFunction) {
+            pimpl_->physicsPipelineState = [pimpl_->device newComputePipelineStateWithFunction:physicsFunction error:&error];
         }
 
         initialized_ = true;
@@ -154,6 +221,53 @@ bool MetalComputeEngine::run_batch_gemm(
         // Leer resultado desde la memoria compartida (Zero-Copy UMA)
         float* result_ptr = static_cast<float*>([buf_Out contents]);
         std::memcpy(Out, result_ptr, size_Out);
+    }
+
+    auto end_time = std::chrono::high_resolution_clock::now();
+    if (elapsed_us) {
+        *elapsed_us = std::chrono::duration<float, std::micro>(end_time - start_time).count();
+    }
+
+    return true;
+}
+
+bool MetalComputeEngine::run_cell_physics(
+    GPUCellParticle* particles, uint32_t count, float dt, float dish_radius, float* elapsed_us
+) {
+    if (!initialized_ || !pimpl_->device || !pimpl_->commandQueue || !pimpl_->physicsPipelineState || count == 0) {
+        return false;
+    }
+
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    @autoreleasepool {
+        size_t buffer_size = count * sizeof(GPUCellParticle);
+
+        // Memoria unificada compartida Zero-Copy (UMA)
+        id<MTLBuffer> particle_buffer = [pimpl_->device newBufferWithBytes:particles length:buffer_size options:MTLResourceStorageModeShared];
+
+        id<MTLCommandBuffer> commandBuffer = [pimpl_->commandQueue commandBuffer];
+        id<MTLComputeCommandEncoder> encoder = [commandBuffer computeCommandEncoder];
+
+        [encoder setComputePipelineState:pimpl_->physicsPipelineState];
+        [encoder setBuffer:particle_buffer offset:0 atIndex:0];
+        [encoder setBytes:&count length:sizeof(count) atIndex:1];
+        [encoder setBytes:&dt length:sizeof(dt) atIndex:2];
+        [encoder setBytes:&dish_radius length:sizeof(dish_radius) atIndex:3];
+
+        MTLSize gridSize = MTLSizeMake(count, 1, 1);
+        NSUInteger threadGroupWidth = std::min((NSUInteger)count, pimpl_->physicsPipelineState.maxTotalThreadsPerThreadgroup);
+        if (threadGroupWidth == 0) threadGroupWidth = 1;
+        MTLSize threadGroupSize = MTLSizeMake(threadGroupWidth, 1, 1);
+
+        [encoder dispatchThreads:gridSize threadsPerThreadgroup:threadGroupSize];
+        [encoder endEncoding];
+
+        [commandBuffer commit];
+        [commandBuffer waitUntilCompleted];
+
+        GPUCellParticle* result_ptr = static_cast<GPUCellParticle*>([particle_buffer contents]);
+        std::memcpy(particles, result_ptr, buffer_size);
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();

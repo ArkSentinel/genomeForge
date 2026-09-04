@@ -5,6 +5,7 @@
 #include <ftxui/component/event.hpp>
 #include <ftxui/component/loop.hpp>
 #include <ftxui/dom/elements.hpp>
+#include <ftxui/dom/canvas.hpp>
 #include <ftxui/screen/color.hpp>
 
 #include <chrono>
@@ -40,6 +41,65 @@ void GenomeForgeApp::add_log(const std::string& level, const std::string& messag
     if (logs_.size() > 50) {
         logs_.erase(logs_.begin());
     }
+}
+
+void GenomeForgeApp::switch_locus_by_index(size_t index) {
+    active_locus_index_ = index % genome::vcf::LocusCatalog::total_loci();
+    const auto* locus = genome::vcf::LocusCatalog::get_by_index(active_locus_index_);
+    if (!locus) return;
+
+    vcf_parser_.switch_to_locus(locus->gene_symbol);
+    selected_variant_index_ = 0;
+
+    // Actualizar contexto biológico para el simulador de Yamanaka
+    bool tp53_mut = false;
+    bool cdkn2a_mut = false;
+    for (const auto& v : vcf_parser_.get_variants()) {
+        std::string_view gene(v.gene_symbol);
+        if (gene == "TP53" && (v.effect == genome::vcf::VariantEffect::YamanakaCollision || 
+                               v.effect == genome::vcf::VariantEffect::Pathogenic)) {
+            tp53_mut = true;
+        }
+        if (gene == "CDKN2A" && (v.effect == genome::vcf::VariantEffect::YamanakaCollision || 
+                                 v.effect == genome::vcf::VariantEffect::Pathogenic)) {
+            cdkn2a_mut = true;
+        }
+    }
+    float burden = static_cast<float>(vcf_parser_.pathogenic_count()) / 
+                   std::max(1.0f, static_cast<float>(vcf_parser_.total_variants()));
+    yamanaka_sim_.set_mutational_context(tp53_mut, cdkn2a_mut, burden);
+
+    if (vcf_parser_.total_variants() > 0) {
+        moe_engine_.route_batch(vcf_parser_.get_variants());
+    }
+
+    // Re-sintetizar guías CRISPR acordes al locus activo
+    if (locus->gene_symbol == "TP53") {
+        target_sequence_window_ = "CTGCTCCCCCCCTGCCCTCAACAAGATGTTTTGCCAGTTGGCTCTGACTGTACCACCATCCACTACAACT";
+    } else if (locus->gene_symbol == "CDKN2A") {
+        target_sequence_window_ = "ATGGAGCCGGCGGCGGGGAGCAGCATGGAGCCGGCGGCGGGGAGCAGCATGGAGCCTTCGGCTGACTGGCT";
+    } else if (locus->gene_symbol == "PTEN") {
+        target_sequence_window_ = "ATGACAGCCATCATCAAAGAGATCGTTAGCAGAAACAAAAGGAGATATCAAGAGGATGGATTCGACTTAGA";
+    } else if (locus->gene_symbol == "MYC") {
+        target_sequence_window_ = "ATGCCCCTCAACGTTAGCTTCACCAACAGGAACTATGACCTCGACTACGACTCGGTGCAGCCGTATTTCTA";
+    } else if (locus->gene_symbol == "BRCA1") {
+        target_sequence_window_ = "ATGGATTTATCTGCTCTTCGCGTTGAAGAAGTACAAAATGTCATTAATGCTATGCAGAAAATCTTAGAGTG";
+    } else if (locus->gene_symbol == "EGFR") {
+        target_sequence_window_ = "ATGCGACCCTCCGGGACGGCCGGGGCAGCGCTCCTGGCGCTGCTGGCTGCGCTCTGCCCGGCGAGTCGGGC";
+    } else if (locus->gene_symbol == "POU5F1") {
+        target_sequence_window_ = "ATGGCGGGACACCTGGCTTCGGATTTCGCCTTCTCGCCCCCTCCAGGTGGTGGAGGTGATGGGCCAGGGGG";
+    } else if (locus->gene_symbol == "SOX2") {
+        target_sequence_window_ = "ATGTACAACATGATGGAGACGGAGCTGAAGCCGCCGGGCCCGCAGCAAACTTCGGGGGGCGGCGGCGGCAA";
+    }
+    crispr_candidates_ = crispr_engine_.design_guides(target_sequence_window_, 20);
+    crispr_applied_ = false;
+
+    add_log("LOCUS", "1000 Genomes focus: " + locus->gene_symbol + " (" + locus->chromosome + ":" + 
+                     std::to_string(locus->start_pos) + "-" + std::to_string(locus->end_pos) + ")");
+}
+
+void GenomeForgeApp::cycle_locus() {
+    switch_locus_by_index(active_locus_index_ + 1);
 }
 
 void GenomeForgeApp::init_simulation_state() {
@@ -87,6 +147,10 @@ void GenomeForgeApp::init_simulation_state() {
     crispr_candidates_ = crispr_engine_.design_guides(target_sequence_window_, 20);
     add_log("INFO", "CRISPR-Cas9 engine synthesized " + std::to_string(crispr_candidates_.size()) + 
                     " guide RNAs with ARM NEON Cas-OFFinder homology screening.");
+
+    // 5. Inicializar Gemelo Digital de Células Vivas
+    cell_twin_.initialize_dish(180, tp53_mut);
+    add_log("INFO", "Living Cell Digital Twin initialized: 180 cell agents in virtual Petri dish with Metal UMA physics.");
 }
 
 void GenomeForgeApp::tick_simulation() {
@@ -101,6 +165,9 @@ void GenomeForgeApp::tick_simulation() {
             size_t idx = static_cast<size_t>(selected_variant_index_) % vcf_parser_.total_variants();
             moe_engine_.route_variant(vcf_parser_.get_variants()[idx]);
         }
+
+        // Avance de física y ciclo celular del Gemelo Digital
+        cell_twin_.step(0.05f);
     }
 }
 
@@ -175,6 +242,8 @@ int GenomeForgeApp::run() {
             make_tab_button(AppTab::CrisprStudio, "CRISPR STUDIO", "5"),
             separator(),
             make_tab_button(AppTab::SystemLogs, "SYSTEM & LOGS", "6"),
+            separator(),
+            make_tab_button(AppTab::DigitalTwin, "DIGITAL TWIN", "7"),
         }) | border;
 
         // 3. VISTAS DEDICADAS POR PESTAÑA
@@ -273,6 +342,34 @@ int GenomeForgeApp::run() {
         // TAB 2: VCF EXPLORER
         // -------------------------------------------------------------
         else if (current_tab_ == AppTab::VcfExplorer) {
+            const auto* cur_locus = genome::vcf::LocusCatalog::get_by_index(active_locus_index_);
+
+            Elements loci_pills;
+            loci_pills.push_back(text(" ◈ CATÁLOGO 1000 GENOMAS: ") | bold | color(Color::Cyan));
+            for (size_t li = 0; li < genome::vcf::LocusCatalog::total_loci(); ++li) {
+                const auto* l = genome::vcf::LocusCatalog::get_by_index(li);
+                bool is_cur = (li == active_locus_index_);
+                std::string gene_txt = " " + l->gene_symbol + " ";
+                if (is_cur) {
+                    loci_pills.push_back(text(gene_txt) | bold | color(Color::Black) | bgcolor(Color::Cyan));
+                } else {
+                    loci_pills.push_back(text(gene_txt) | color(Color::GrayLight));
+                }
+            }
+            loci_pills.push_back(filler());
+            loci_pills.push_back(text("[L] CONMUTAR GEN (Tabix Range)  ") | bold | color(Color::Yellow));
+
+            auto locus_header_bar = vbox({
+                hbox(std::move(loci_pills)),
+                cur_locus ? hbox({
+                    text("   Locus Activo: ") | color(Color::GrayLight),
+                    text(cur_locus->gene_symbol + " - " + cur_locus->full_name) | bold | color(Color::White),
+                    text(" [" + cur_locus->chromosome + ":" + std::to_string(cur_locus->start_pos) + "-" + std::to_string(cur_locus->end_pos) + "]") | color(Color::Cyan),
+                    filler(),
+                    text("1000 Genomes Phase 3 (GRCh38) ") | color(Color::GrayDark)
+                }) : text("")
+            }) | border;
+
             Elements table_rows;
             table_rows.push_back(
                 hbox({
@@ -376,6 +473,7 @@ int GenomeForgeApp::run() {
             }
 
             active_view = vbox({
+                locus_header_bar,
                 vbox(std::move(table_rows)) | border | flex,
                 locus_box
             }) | flex;
@@ -628,15 +726,142 @@ int GenomeForgeApp::run() {
             }) | flex;
         }
 
+        // -------------------------------------------------------------
+        // TAB 7: DIGITAL TWIN (PETRI DISH & AGENT-BASED SIMULATION)
+        // -------------------------------------------------------------
+        else if (current_tab_ == AppTab::DigitalTwin) {
+            const auto& t_metrics = cell_twin_.get_metrics();
+            const auto& cells = cell_twin_.get_cells();
+
+            // Canvas para la placa de Petri (110x68 pixels con sub-píxeles Braille)
+            int c_width = 110;
+            int c_height = 68;
+            Canvas petri_canvas(c_width, c_height);
+
+            // Borde exterior y anillo de la placa de Petri
+            petri_canvas.DrawPointEllipse(c_width / 2, c_height / 2, (c_width / 2) - 4, (c_height / 2) - 3, Color::GrayDark);
+            petri_canvas.DrawPointEllipse(c_width / 2, c_height / 2, (c_width / 2) - 5, (c_height / 2) - 4, Color::GrayDark);
+
+            // Renderizado de cada célula viva según su fenotipo biológico
+            for (const auto& cell : cells) {
+                int px = static_cast<int>((c_width / 2.0f) + (cell.x / 45.0f) * ((c_width / 2.0f) - 6));
+                int py = static_cast<int>((c_height / 2.0f) + (cell.y / 45.0f) * ((c_height / 2.0f) - 5));
+
+                if (px >= 0 && px < c_width && py >= 0 && py < c_height) {
+                    Color cell_col = Color::BlueLight;
+                    switch (cell.phenotype) {
+                        case genome::twin::CellPhenotype::SomaticFibroblast:
+                            cell_col = Color::BlueLight;
+                            break;
+                        case genome::twin::CellPhenotype::IntermediateReprog:
+                            cell_col = Color::Yellow;
+                            break;
+                        case genome::twin::CellPhenotype::PluripotentIPSC:
+                            cell_col = Color::GreenLight;
+                            break;
+                        case genome::twin::CellPhenotype::TransformedMalignant:
+                            cell_col = Color::Red;
+                            break;
+                        case genome::twin::CellPhenotype::ApoptoticCorpse:
+                            cell_col = Color::GrayDark;
+                            break;
+                    }
+                    petri_canvas.DrawPoint(px, py, true, cell_col);
+                    if (cell.phenotype == genome::twin::CellPhenotype::PluripotentIPSC || 
+                        cell.phenotype == genome::twin::CellPhenotype::TransformedMalignant) {
+                        petri_canvas.DrawPoint(std::min(c_width - 1, px + 1), py, true, cell_col);
+                        petri_canvas.DrawPoint(px, std::min(c_height - 1, py + 1), true, cell_col);
+                    }
+                }
+            }
+
+            auto petri_box = vbox({
+                hbox({
+                    text("◈ PLACA DE PETRI VIRTUAL (CULTIVO 2D EN TIEMPO REAL)") | bold | color(Color::Cyan),
+                    filler(),
+                    text(t_metrics.dox_active ? " [OSKM: INDUCIDO] " : " [OSKM: BASAL] ") | bold | 
+                         (t_metrics.dox_active ? color(Color::Green) : color(Color::GrayLight)),
+                    text(t_metrics.crispr_applied ? " [CRISPR: RESCATADO] " : " [CRISPR: NINGUNO] ") | bold | 
+                         (t_metrics.crispr_applied ? color(Color::Cyan) : color(Color::GrayLight)),
+                    text(t_metrics.uv_insult_active ? " [UV: INSULTO ACTIVO] " : " [UV: NORMAL] ") | bold | 
+                         (t_metrics.uv_insult_active ? color(Color::Red) : color(Color::GrayLight)),
+                }),
+                separator(),
+                canvas(std::move(petri_canvas)) | center | flex,
+                separator(),
+                hbox({
+                    text(" Leyenda: ") | bold | color(Color::White),
+                    text("● Somática (Fibroblasto) ") | color(Color::BlueLight),
+                    text("◐ Intermedio MET ") | color(Color::Yellow),
+                    text("● Colonia iPSC ") | bold | color(Color::GreenLight),
+                    text("▲ Maligna (TP53-Mut) ") | bold | color(Color::Red),
+                    text("✕ Apoptosis ") | color(Color::GrayDark),
+                })
+            }) | border | flex;
+
+            auto twin_telemetry_box = vbox({
+                text("◈ CENSO BIOLÓGICO Y POBLACIONAL") | bold | color(Color::Cyan),
+                separator(),
+                hbox({ text("Población Total: ") | color(Color::GrayLight), text(std::to_string(t_metrics.total_cells) + " células") | bold | color(Color::White) }),
+                hbox({ text("Fibroblastos Somáticos: ") | color(Color::GrayLight), text(std::to_string(t_metrics.somatic_count)) | color(Color::BlueLight) }),
+                hbox({ text("Transición Intermedia (MET): ") | color(Color::GrayLight), text(std::to_string(t_metrics.intermediate_count)) | color(Color::Yellow) }),
+                hbox({ text("Colonias Madre Pluripotentes (iPSC): ") | color(Color::GrayLight), text(std::to_string(t_metrics.ipsc_count)) | bold | color(Color::GreenLight) }),
+                hbox({ text("Clones Malignos Transformados: ") | color(Color::GrayLight), text(std::to_string(t_metrics.transformed_count)) | bold | color(Color::Red) }),
+                hbox({ text("Células en Apoptosis: ") | color(Color::GrayLight), text(std::to_string(t_metrics.apoptotic_count)) | color(Color::GrayDark) }),
+                separator(),
+                text("◈ DINÁMICA DE REPROGRAMACIÓN Y RIESGO") | bold | color(Color::Cyan),
+                separator(),
+                hbox({
+                    text("Confluencia del Cultivo: ") | color(Color::GrayLight),
+                    text(std::to_string(static_cast<int>(t_metrics.confluence * 100.0f)) + "% ") | color(Color::White),
+                    gauge(t_metrics.confluence) | size(WIDTH, EQUAL, 12) | color(Color::Cyan)
+                }),
+                hbox({
+                    text("Índice Mitótico (Fase M): ") | color(Color::GrayLight),
+                    text(std::to_string(static_cast<int>(t_metrics.mitotic_index)) + "% ") | color(Color::White),
+                    gauge(t_metrics.mitotic_index / 25.0f) | size(WIDTH, EQUAL, 12) | color(Color::Yellow)
+                }),
+                hbox({
+                    text("Rendimiento iPSC: ") | color(Color::GrayLight),
+                    text(std::to_string(static_cast<int>(t_metrics.ipsc_efficiency)) + "% ") | bold | color(Color::Green),
+                    gauge(t_metrics.ipsc_efficiency / 100.0f) | size(WIDTH, EQUAL, 12) | color(Color::Green)
+                }),
+                hbox({
+                    text("R-Score Medio Poblacional: ") | color(Color::GrayLight),
+                    text(std::to_string(t_metrics.average_r_score).substr(0, 4) + " ") | bold | 
+                         (t_metrics.average_r_score > 0.5f ? color(Color::Red) : color(Color::Green)),
+                    gauge(t_metrics.average_r_score) | size(WIDTH, EQUAL, 12) | 
+                         (t_metrics.average_r_score > 0.5f ? color(Color::Red) : color(Color::Green))
+                }),
+                separator(),
+                text("◈ CONTROLES BIOLÓGICOS DEL GEMELO DIGITAL") | bold | color(Color::Cyan),
+                separator(),
+                vbox({
+                    text("[D] Inyectar/Suspender Doxiciclina (OSKM)") | bold | color(Color::Yellow),
+                    text("[C] Terapia CRISPR-Cas9 in-situ (Rescate TP53)") | bold | color(Color::Green),
+                    text("[U] Estrés Genotóxico (Irradiación UV)") | bold | color(Color::Magenta),
+                    text("[+] / [-] Inocular / Remover Células") | color(Color::Cyan),
+                    text("[R] Reset Cultivo a Estado Basal") | color(Color::White),
+                    text("[Espacio] Pausar / Reanudar Dinámica") | color(Color::GrayLight),
+                })
+            }) | border | size(WIDTH, EQUAL, 46);
+
+            active_view = hbox({
+                petri_box,
+                twin_telemetry_box
+            }) | flex;
+        }
+
         // 4. FOOTER
         auto footer = hbox({
             text(" Atajos: ") | bold | color(Color::White),
-            text("[1..6] ") | bold | color(Color::Cyan), text("Pestañas  ") | color(Color::GrayLight),
+            text("[1..7] ") | bold | color(Color::Cyan), text("Pestañas  ") | color(Color::GrayLight),
             text("[Tab] ") | bold | color(Color::Cyan), text("Ciclar  ") | color(Color::GrayLight),
-            text("[↑/↓] ") | bold | color(Color::Cyan), text("Navegar  ") | color(Color::GrayLight),
-            text("[E] ") | bold | color(Color::Green), text("CRISPR Edit  ") | color(Color::GrayLight),
-            text("[R] ") | bold | color(Color::Yellow), text("Reset Genoma  ") | color(Color::GrayLight),
-            text("[Espacio] ") | bold | color(Color::Cyan), text("Pausar/Reanudar  ") | color(Color::GrayLight),
+            text("[L] ") | bold | color(Color::Yellow), text("Conmutar Gen  ") | color(Color::GrayLight),
+            text("[D] ") | bold | color(Color::Green), text("Dox OSKM  ") | color(Color::GrayLight),
+            text("[C] ") | bold | color(Color::Cyan), text("CRISPR Rescue  ") | color(Color::GrayLight),
+            text("[U] ") | bold | color(Color::Magenta), text("UV Stress  ") | color(Color::GrayLight),
+            text("[Espacio] ") | bold | color(Color::Cyan), text("Pausar  ") | color(Color::GrayLight),
             text("[Q] ") | bold | color(Color::Red), text("Salir") | color(Color::GrayLight),
         }) | border;
 
@@ -661,10 +886,49 @@ int GenomeForgeApp::run() {
         if (event == Event::Character('4')) { current_tab_ = AppTab::MoeRouter; return true; }
         if (event == Event::Character('5')) { current_tab_ = AppTab::CrisprStudio; return true; }
         if (event == Event::Character('6')) { current_tab_ = AppTab::SystemLogs; return true; }
+        if (event == Event::Character('7')) { current_tab_ = AppTab::DigitalTwin; return true; }
 
         if (event == Event::Tab) {
-            int next_tab = (static_cast<int>(current_tab_) + 1) % 6;
+            int next_tab = (static_cast<int>(current_tab_) + 1) % 7;
             current_tab_ = static_cast<AppTab>(next_tab);
+            return true;
+        }
+
+        if (event == Event::Character('l') || event == Event::Character('L')) {
+            cycle_locus();
+            return true;
+        }
+
+        // Acciones del Gemelo Digital
+        if (event == Event::Character('d') || event == Event::Character('D')) {
+            cell_twin_.toggle_doxycycline();
+            add_log("TWIN", cell_twin_.is_dox_active() ? 
+                    "Doxycycline OSKM pulse INJECTED into culture medium." : 
+                    "Doxycycline OSKM REMOVED from culture medium.");
+            return true;
+        }
+
+        if (event == Event::Character('c') || event == Event::Character('C')) {
+            cell_twin_.apply_crispr_rescue();
+            add_log("CRISPR", "Targeted Cas9/HDR transfection rescued TP53 mutations across all living cells in dish.");
+            return true;
+        }
+
+        if (event == Event::Character('u') || event == Event::Character('U')) {
+            cell_twin_.trigger_uv_damage();
+            add_log("ALERT", "UV genotoxic irradiation insult triggered. Testing DNA repair checkpoints.");
+            return true;
+        }
+
+        if (event == Event::Character('+') || event == Event::Character('=')) {
+            cell_twin_.adjust_population(+25);
+            add_log("TWIN", "Inoculated +25 cells into virtual Petri dish.");
+            return true;
+        }
+
+        if (event == Event::Character('-') || event == Event::Character('_')) {
+            cell_twin_.adjust_population(-25);
+            add_log("TWIN", "Aspirated -25 cells from virtual Petri dish.");
             return true;
         }
 
@@ -692,7 +956,7 @@ int GenomeForgeApp::run() {
 
         if (event == Event::Character(' ')) {
             yamanaka_running_ = !yamanaka_running_;
-            add_log("INFO", yamanaka_running_ ? "Yamanaka dynamic pulse resumed." : "Yamanaka dynamic pulse paused.");
+            add_log("INFO", yamanaka_running_ ? "Simulation engines resumed." : "Simulation engines paused.");
             return true;
         }
 
@@ -712,7 +976,7 @@ int GenomeForgeApp::run() {
 
                 add_log("EDIT", "CRISPR Cas9 endonuclease cut simulated at PAM " + 
                                 (crispr_candidates_.empty() ? "NGG" : crispr_candidates_[0].pam) + " locus.");
-                add_log("EDIT", "Homology-Directed Repair (HDR) template integrated wild-type codon (Arg175).");
+                add_log("EDIT", "Homology-Directed Repair (HDR) template integrated wild-type codon.");
                 add_log("INFO", "Yamanaka ODE Solver: p53 checkpoint restored. R-Score dropped to 0.12 (SAFE).");
             } else {
                 add_log("WARN", "CRISPR correction already applied to current target locus.");
@@ -721,24 +985,29 @@ int GenomeForgeApp::run() {
         }
 
         if (event == Event::Character('r') || event == Event::Character('R')) {
-            vcf_parser_.load_file(vcf_path_);
-            crispr_applied_ = false;
+            if (current_tab_ == AppTab::DigitalTwin) {
+                cell_twin_.reset();
+                add_log("TWIN", "Virtual Petri dish reset to basal cell state.");
+            } else {
+                vcf_parser_.load_file(vcf_path_);
+                crispr_applied_ = false;
 
-            bool tp53_mut = false;
-            for (const auto& v : vcf_parser_.get_variants()) {
-                if (std::string_view(v.gene_symbol) == "TP53" && 
-                    v.effect == genome::vcf::VariantEffect::YamanakaCollision) tp53_mut = true;
+                bool tp53_mut = false;
+                for (const auto& v : vcf_parser_.get_variants()) {
+                    if (std::string_view(v.gene_symbol) == "TP53" && 
+                        v.effect == genome::vcf::VariantEffect::YamanakaCollision) tp53_mut = true;
+                }
+                float burden = static_cast<float>(vcf_parser_.pathogenic_count()) / 
+                               std::max(1.0f, static_cast<float>(vcf_parser_.total_variants()));
+                yamanaka_sim_.set_mutational_context(tp53_mut, false, burden);
+                yamanaka_sim_.reset();
+
+                target_sequence_window_ = "CTGCTCCCCCCCTGCCCTCAACAAGATGTTTTGCCAGTTGGCTCTGACTGTACCACCATCCACTACAACT";
+                crispr_candidates_ = crispr_engine_.design_guides(target_sequence_window_, 20);
+
+                add_log("WARN", "Genome state reset to original patient VCF. TP53 R175H re-activated!");
+                add_log("CRIT", "Oncogenic instability alert! R-Score surged back to high-risk state.");
             }
-            float burden = static_cast<float>(vcf_parser_.pathogenic_count()) / 
-                           std::max(1.0f, static_cast<float>(vcf_parser_.total_variants()));
-            yamanaka_sim_.set_mutational_context(tp53_mut, false, burden);
-            yamanaka_sim_.reset();
-
-            target_sequence_window_ = "CTGCTCCCCCCCTGCCCTCAACAAGATGTTTTGCCAGTTGGCTCTGACTGTACCACCATCCACTACAACT";
-            crispr_candidates_ = crispr_engine_.design_guides(target_sequence_window_, 20);
-
-            add_log("WARN", "Genome state reset to original patient VCF. TP53 R175H re-activated!");
-            add_log("CRIT", "Oncogenic instability alert! R-Score surged back to high-risk state.");
             return true;
         }
 

@@ -1,4 +1,5 @@
 #include "vcf/vcf_parser.hpp"
+#include "vcf/locus_catalog.hpp"
 
 #include <fstream>
 #include <sstream>
@@ -129,7 +130,57 @@ bool VcfParser::load_file(const std::string& filepath) {
     }
 
     loaded_ = true;
+    if (!variants_.empty()) {
+        active_locus_gene_ = variants_[0].gene_symbol;
+    }
     return true;
+}
+
+bool VcfParser::load_from_string(const std::string& vcf_content, const std::string& source_name) {
+    filepath_ = source_name;
+    variants_.clear();
+    pathogenic_count_ = 0;
+    yamanaka_collision_count_ = 0;
+
+    std::istringstream stream(vcf_content);
+    std::string line;
+    while (std::getline(stream, line)) {
+        parse_line(line);
+    }
+
+    loaded_ = true;
+    if (!variants_.empty()) {
+        active_locus_gene_ = variants_[0].gene_symbol;
+    }
+    return true;
+}
+
+bool VcfParser::switch_to_locus(const std::string& gene_symbol, const std::string& sample_id) {
+    const auto* locus = LocusCatalog::find_by_gene(gene_symbol);
+    if (!locus) return false;
+
+    std::string vcf_data = LocusCatalog::generate_slice_vcf(*locus, sample_id);
+    active_locus_gene_ = locus->gene_symbol;
+    return load_from_string(vcf_data, "1000Genomes://" + locus->gene_symbol + " (" + locus->chromosome + ")");
+}
+
+float VcfParser::average_allele_frequency() const {
+    if (variants_.empty()) return 0.0f;
+    float sum = 0.0f;
+    for (const auto& v : variants_) {
+        sum += v.allele_frequency;
+    }
+    return sum / static_cast<float>(variants_.size());
+}
+
+float VcfParser::max_pathogenicity_score() const {
+    float max_score = 0.0f;
+    for (const auto& v : variants_) {
+        if (v.pathogenicity_score > max_score) {
+            max_score = v.pathogenicity_score;
+        }
+    }
+    return max_score;
 }
 
 bool VcfParser::apply_virtual_correction(size_t index) {

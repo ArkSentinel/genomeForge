@@ -2,9 +2,11 @@
 
 #include "system/telemetry.hpp"
 #include "vcf/vcf_parser.hpp"
+#include "vcf/locus_catalog.hpp"
 #include "yamanaka/yamanaka_sim.hpp"
 #include "moe/moe_engine.hpp"
 #include "crispr/crispr_engine.hpp"
+#include "digital_twin/cell_twin.hpp"
 
 #include <string>
 #include <vector>
@@ -19,7 +21,8 @@ enum class AppTab : int {
     YamanakaDynamics = 2,
     MoeRouter = 3,
     CrisprStudio = 4,
-    SystemLogs = 5
+    SystemLogs = 5,
+    DigitalTwin = 6
 };
 
 class GenomeForgeApp {
@@ -34,6 +37,8 @@ private:
     void init_simulation_state();
     void add_log(const std::string& level, const std::string& message);
     void tick_simulation();
+    void switch_locus_by_index(size_t index);
+    void cycle_locus();
 
     std::string vcf_path_;
     genome::vcf::VcfParser vcf_parser_;
@@ -43,12 +48,14 @@ private:
     genome::yamanaka::YamanakaSimulator yamanaka_sim_;
     genome::moe::MoEEngine moe_engine_;
     genome::crispr::CrisprEngine crispr_engine_;
+    genome::twin::CellTwinSimulator cell_twin_;
 
     // Pestaña activa
     AppTab current_tab_{AppTab::Dashboard};
 
     // Estado interactivo de la UI
     int selected_variant_index_{0};
+    size_t active_locus_index_{0};
     bool yamanaka_running_{true};
 
     // Estado de CRISPR

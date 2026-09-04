@@ -12,6 +12,15 @@ struct MetalDeviceInfo {
     uint64_t max_buffer_size{0};
 };
 
+struct GPUCellParticle {
+    float x;
+    float y;
+    float vx;
+    float vy;
+    float radius;
+    float pad[3];
+};
+
 class MetalComputeEngine {
 public:
     MetalComputeEngine();
@@ -24,6 +33,9 @@ public:
     // Ejecuta multiplicación matricial por lotes en GPU Metal usando memoria unificada (Zero-Copy)
     // X: [N, K], W: [M, K] -> Out: [N, M]
     bool run_batch_gemm(const float* X, int N, int K, const float* W, int M, float* Out, float* elapsed_us = nullptr);
+
+    // Simula dinámica física espacial intercelular en placa de Petri en GPU Metal
+    bool run_cell_physics(GPUCellParticle* particles, uint32_t count, float dt, float dish_radius, float* elapsed_us = nullptr);
 
 private:
     struct Impl;

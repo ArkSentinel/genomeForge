@@ -30,10 +30,12 @@ add_executable(genome_forge
     src/main.cpp
     src/system/telemetry.cpp
     src/vcf/vcf_parser.cpp
+    src/vcf/locus_catalog.cpp
     src/yamanaka/yamanaka_sim.cpp
     src/moe/moe_engine.cpp
     src/metal/metal_compute.mm
     src/crispr/crispr_engine.cpp
+    src/digital_twin/cell_twin.cpp
     src/ui/tui_app.cpp
 )
 

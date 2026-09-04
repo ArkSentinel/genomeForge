@@ -38,6 +38,8 @@ public:
     ~VcfParser();
 
     bool load_file(const std::string& filepath);
+    bool load_from_string(const std::string& vcf_content, const std::string& source_name = "MEMORY");
+    bool switch_to_locus(const std::string& gene_symbol, const std::string& sample_id = "HG00096");
 
     const std::vector<GenomicVariant>& get_variants() const { return variants_; }
     size_t total_variants() const { return variants_.size(); }
@@ -45,7 +47,11 @@ public:
     size_t yamanaka_collision_count() const { return yamanaka_collision_count_; }
 
     const std::string& get_filepath() const { return filepath_; }
+    const std::string& get_active_locus() const { return active_locus_gene_; }
     bool has_loaded() const { return loaded_; }
+
+    float average_allele_frequency() const;
+    float max_pathogenicity_score() const;
 
     // Simula corrección virtual de una variante (in-silico CRISPR edit)
     bool apply_virtual_correction(size_t index);
@@ -55,6 +61,7 @@ private:
     uint16_t parse_chrom(std::string_view chrom_str);
 
     std::string filepath_;
+    std::string active_locus_gene_{"TP53"};
     std::vector<GenomicVariant> variants_;
     size_t pathogenic_count_{0};
     size_t yamanaka_collision_count_{0};

@@ -202,44 +202,72 @@ $$R(t) = w_1 \cdot [\text{Inestabilidad}](t) + w_2 \cdot \frac{[\text{c-Myc}](t)
 ```
 
 #### Arquitectura de Navegación por Pestañas (Process Tabs)
-Para maximizar el detalle analítico y permitir la inspección profunda de cada subsistema sin saturar la pantalla, la interfaz se estructura en 6 pestañas independientes a pantalla completa:
+Para maximizar el detalle analítico y permitir la inspección profunda de cada subsistema sin saturar la pantalla, la interfaz se estructura en 7 pestañas independientes a pantalla completa:
 
 * **Pestaña `[1] DASHBOARD`:** Resumen ejecutivo de la muestra del paciente, estado global de la simulación, nivel de alerta del R-Score y acceso rápido a corrección.
-* **Pestaña `[2] VCF EXPLORER`:** Tabla genómica interactiva exhaustiva con filtrado cromosómico, profundidad de lectura (DP), frecuencias alélicas (AF) y visualizador de secuencia flanqueante de 40 nucleótidos con enmarcado de codones.
+* **Pestaña `[2] VCF EXPLORER`:** Tabla genómica interactiva exhaustiva con catálogo de loci 1000 Genomas, selector en caliente (`[L]`), profundidad de lectura (DP), frecuencias alélicas poblacionales (AF) y visualizador de secuencia flanqueante.
 * **Pestaña `[3] YAMANAKA (OSKM)`:** Simulador biomatemático de ecuaciones diferenciales ordinarias (ODEs continuas), cinética de factores OSKM (Oct4, Sox2, Klf4, c-Myc), eje de control downstream (p53 / p21) y gráfica temporal del R-Score.
 * **Pestaña `[4] MoE ROUTER`:** Motor de Mezcla de Expertos, vector de pesos de la Gating Network, distribución Softmax sobre las 4 subredes biológicas (Daño ADN, Ciclo Celular, Apoptosis, Pluripotencia) y telemetría de latencia en CPU (Accelerate vDSP/AMX) vs GPU (Metal Shared UMA).
 * **Pestaña `[5] CRISPR STUDIO`:** Catálogo de ARNs guía (gRNA) candidatos para motivos PAM NGG, scoring de especificidad, estimación de corte de doble hebra (DSB) y conmutador de reparación in-silico por HDR.
 * **Pestaña `[6] SYSTEM & LOGS`:** Auditoría completa de eventos del sistema y telemetría granular de hardware Apple Silicon por núcleo individual (P-Cores vs E-Cores) y páginas de memoria unificada.
+* **Pestaña `[7] DIGITAL TWIN`:** Gemelo digital multicelular espacial (*Agent-Based Model*) con placa de Petri virtual en 2D, física de colisiones acelerada por GPU Metal en memoria unificada, máquina de estados de ciclo celular ($G_0 \to M$), colonias iPSC (verdes), clones transformados por mutación en *TP53* (rojos) y renderizado sub-pixel con caracteres Braille.
 
 #### Atajos de Teclado Globales
-* `1` a `6`: Salto directo instantáneo a cualquier pestaña de proceso.
-* `Tab` / `Shift+Tab`: Ciclar ordenadamente entre pestañas.
-* `↑` / `↓` o `k` / `j`: Navegar filas en tablas y catálogos.
-* `Espacio`: Pausar o reanudar el pulso dinámico de Yamanaka.
-* `E`: Ejecutar intervención virtual CRISPR-Cas9 (HDR repair).
-* `R`: Restablecer genoma al estado mutacional basal del paciente.
+* `1` a `7`: Salto directo instantáneo a cualquier pestaña de proceso.
+* `Tab`: Ciclar ordenadamente entre las 7 pestañas.
+* `L`: Conmutar dinámicamente el gen/locus activo del consorcio 1000 Genomas (*TP53*, *CDKN2A*, *PTEN*, *MYC*, *BRCA1*, *EGFR*, *OCT4*, *SOX2*).
+* `D`: Inyectar o suspender Doxiciclina en el medio de cultivo (inducción de factores de Yamanaka OSKM).
+* `C`: Administrar terapia génica dirigida CRISPR-Cas9 in-situ sobre las células del Gemelo Digital.
+* `U`: Disparar estrés genotóxico por radiación UV para poner a prueba los puntos de control del ciclo celular.
+* `+` / `-`: Inocular o aspirar células en el cultivo de la placa de Petri (+25 / -25 células).
+* `↑` / `↓` o `k` / `j`: Navegar filas en tablas genómicas y catálogos de guías.
+* `Espacio`: Pausar o reanudar el pulso dinámico de las simulaciones.
+* `E`: Ejecutar intervención virtual CRISPR-Cas9 (HDR repair) sobre la variante VCF seleccionada.
+* `R`: Restablecer el cultivo celular (si se está en Tab 7) o restablecer el genoma original del paciente.
 * `Q` o `Esc`: Cierre limpio de la aplicación.
 
 ---
 
-## 4. Estándar de Validación con Datos Reales (Proyecto 1000 Genomas)
+## 4. Gemelo Digital Celular Espacial (*Whole-Cell Spatial Digital Twin*)
+
+### Biofísica Intercelular y Dinámica de Población
+* **Modelo Basado en Agentes (ABM):** Población de $N = 100$ a $2.000$ células en una placa de Petri 2D de radio $R = 45.0$ mm.
+* **Estructura `CellAgent` (64 bytes, `alignas(64)`):** Coordenadas $(x,y)$, velocidades $(v_x,v_y)$, radio celular, masa inercial, reloj de ciclo celular, niveles de pluripotencia ($P$), identidad somática ($S$), supresión tumoral ($p_{53}$), riesgo oncogénico ($R$-Score) y mutaciones genómicas.
+* **Máquina de Estados de Ciclo Celular:**
+  $$G_0 \text{ (Quiescencia)} \longrightarrow G_1 \text{ (Crecimiento)} \longrightarrow S \text{ (Síntesis ADN)} \longrightarrow G_2 \longrightarrow M \text{ (Mitosis)}$$
+* **Eventos Fenotípicos:**
+  * **Fibroblasto Somático (Azul):** Célula diferenciada quiescente o en ciclo normal.
+  * **Intermedio MET (Amarillo):** Célula en transición mesénquima-epitelio durante reprogramación.
+  * **Colonia Pluripotente iPSC (Verde):** Agrupaciones compactas de células madre con alta adhesión intercelular.
+  * **Escape Oncogénico / Neoplásico (Rojo):** Células con mutación patogénica en *TP53* sometidas a inducción con *c-Myc*, proliferando a velocidad $3\times$.
+  * **Apoptosis (Gris):** Muerte celular programada inducida por $p_{53}$ funcional ante estrés genotóxico UV.
+* **Aceleración Metal GPU:** Kernel `cell_physics_kernel` en Objective-C++ y MSL, resolviendo colisiones elásticas de esfera blanda a 60 FPS en memoria unificada compartida (`storageModeShared`).
+
+---
+
+## 5. Estándar de Validación con Datos Reales (Proyecto 1000 Genomas)
 
 El sistema soporta la ingesta y benchmarking frente a conjuntos de variantes auténticas provenientes del **1000 Genomes Project** (`https://s3.amazonaws.com/1000genomes`):
 * **Genoma de Referencia:** GRCh38 / hg38.
 * **Muestras Clave:** Muestra HG00096 / NA12878.
-* **Extracción de Slices Focalizados:**
-  * Locus *TP53* (Cromosoma 17: 7,668,402 - 7,687,550 bp).
-  * Locus *CDKN2A* (Cromosoma 9: 21,967,751 - 21,995,300 bp).
-  * Locus *MYC* (Cromosoma 8: 127,735,434 - 127,742,951 bp).
+* **Catálogo Multi-Locus:**
+  * `TP53` (Chr17: 7,668,402 - 7,687,550 bp) — Guardián del genoma y colisión con Yamanaka.
+  * `CDKN2A` (Chr9: 21,967,751 - 21,995,300 bp) — Barrera de senescencia celular.
+  * `PTEN` (Chr10: 87,862,566 - 87,971,930 bp) — Supresor tumoral vía PI3K/AKT.
+  * `MYC` (Chr8: 127,735,434 - 127,742,951 bp) — Proto-oncogén y factor de reprogramación OSKM.
+  * `BRCA1` (Chr17: 43,044,295 - 43,125,483 bp) — Reparación por recombinación homóloga.
+  * `EGFR` (Chr7: 55,019,017 - 55,211,628 bp) — Receptor tirosina quinasa de proliferación.
+  * `POU5F1` / `OCT4` (Chr6: 31,164,335 - 31,170,694 bp) — Factor maestro de pluripotencia.
+  * `SOX2` (Chr3: 181,711,925 - 181,714,436 bp) — Factor de transcripción stem cell.
 * **Script de Automatización:** `scripts/fetch_1000genomes_slice.sh`.
 
 ---
 
-## 5. Pipeline de Construcción y Rendimiento
+## 6. Pipeline de Construcción y Rendimiento
 
-* **Compilador:** `clang++` con `-std=c++20 -O3 -mcpu=apple-m1` (o compatible ARM64 nativo).
+* **Compilador:** `clang++` con `-std=c++20 -O3` (optimizado para Apple Silicon ARM64).
 * **Frameworks de macOS:**
-  * `-framework Accelerate` (vDSP, BLAS, LAPACK).
-  * `-framework Metal` y `-framework MetalPerformanceShaders` (cómputo GPU).
-  * `-framework Foundation` / `-framework IOKit` (servicios del sistema).
-* **Dependencia TUI:** FTXUI integrada como submódulo CMake (`external/ftxui`).
+  * `-framework Accelerate` (vDSP, CBLAS, LAPACK).
+  * `-framework Metal` (cómputo GPU y memoria unificada Zero-Copy UMA).
+  * `-framework Foundation` (servicios del sistema).
+* **Dependencia TUI:** FTXUI integrada de forma autónoma (`external/ftxui`).

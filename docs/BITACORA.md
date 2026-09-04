@@ -11,11 +11,13 @@ Este documento registra cronológicamente las decisiones de diseño, hitos de im
 | **Especificación de Requerimientos** | ✅ Completado | Markdown / KaTeX | Formalizado en `docs/SPECS.md` |
 | **Bitácora de Ingeniería** | ✅ Activo | Markdown | Seguimiento continuo de hitos (`docs/BITACORA.md`) |
 | **Monitoreo Hardware Apple Silicon** | ✅ Operativo | Darwin Mach Kernel (`mach_host.h`) | Telemetría real de núcleos P/E y RAM unificada |
-| **Arquitectura de Pestañas (Tabs)** | ✅ Operativo | FTXUI (C++20) | 6 pestañas dedicadas a pantalla completa (`[1]` a `[6]`) |
+| **Arquitectura de Pestañas (Tabs)** | ✅ Operativo | FTXUI (C++20) | 7 pestañas dedicadas a pantalla completa (`[1]` a `[7]`) |
 | **Ingesta de Variantes VCF & 1000G** | ✅ Operativo | C++20 / Memoria alineada | `alignas(64)` en ARM64 y soporte 1000 Genomas |
+| **Catálogo Multi-Locus 1000G** | ✅ Operativo | C++20 / Tabix Range Streaming | 8 loci clínicos (*TP53*, *CDKN2A*, *PTEN*, *MYC*, etc.) con conmutación interactiva `[L]` |
 | **Motor MoE (Mixture of Experts)** | ✅ Operativo | Accelerate (vDSP) / Metal GPU | Gating Router, Top-2 y aceleración en Apple M4 |
 | **Simulador Dinámico Yamanaka** | ✅ Operativo | ODE Solver continuo (RK4) | Sistema dinámico no lineal, cinética OSKM y R-Score |
 | **Motor de Intervención CRISPR** | ✅ Operativo | C++ SIMD ARM NEON | Escaneo PAM NGG, Cas-OFFinder y reparación HDR |
+| **Gemelo Digital Celular (Digital Twin)** | ✅ Operativo | ABM / Metal GPU / FTXUI Canvas | Simulación multi-agente en placa de Petri 2D con biofísica espacial y ciclo celular |
 
 ---
 
@@ -139,4 +141,32 @@ Este documento registra cronológicamente las decisiones de diseño, hitos de im
      * Acoplamiento con el ODE Solver de Yamanaka y el Router MoE por cada célula individual para simular reprogramación iPSC heterogénea y escape oncogénico.
      * Pipeline de física y colisiones mecánicas acelerado por Metal Compute en GPU (memoria unificada UMA).
      * Renderizado en terminal mediante FTXUI Canvas utilizando caracteres Braille (`⣿`) y mapas de color en tiempo real.
+
+---
+
+### [2026-09-04] — Entrada #007: Despliegue de Motor 1000 Genomas Multi-Locus y Gemelo Digital Celular en Metal GPU
+* **Objetivo:** Implementar la navegación interactiva multi-locus del consorcio 1000 Genomas y el simulador de Gemelo Digital de Células Vivas (*Spatial Whole-Cell Digital Twin*) con aceleración GPU en Apple Silicon M4 y renderizado en Canvas Braille 2D.
+* **Componentes Construidos e Integrados:**
+  1. **Catálogo Multi-Locus 1000 Genomas (`include/vcf/locus_catalog.hpp` / `src/vcf/locus_catalog.cpp`):**
+     * Definición de 8 loci clínicos de referencia en GRCh38: *TP53* (Chr17), *CDKN2A* (Chr9), *PTEN* (Chr10), *MYC* (Chr8), *BRCA1* (Chr17), *EGFR* (Chr7), *POU5F1/OCT4* (Chr6), *SOX2* (Chr3).
+     * Soporte de conmutación en caliente mediante la tecla `[L]` en la pestaña `[2] VCF EXPLORER` y recarga en memoria sin reiniciar la aplicación.
+     * Generación y extracción de slices VCF con frecuencias alélicas poblacionales (`AF`), profundidad (`DP`) y significado clínico ClinVar.
+     * Consolidación del panel multicromosómico en `data/1000genomes_clinical_panel.vcf`.
+  2. **Motor de Biofísica y Ciclo Celular del Gemelo Digital (`include/digital_twin/cell_twin.hpp` / `src/digital_twin/cell_twin.cpp`):**
+     * Estructura celular `CellAgent` con tamaño exacto de 64 bytes (`alignas(64)`) para ajuste a líneas de caché ARM64.
+     * Máquina de estados de ciclo celular ($G_0 \to G_1 \to S \to G_2 \to M$) con división mitótica, dispersión espacial y herencia genética.
+     * Fenotipos celulares dinámicos: Fibroblastos Somáticos (Azul), Intermedios MET (Amarillo), Colonias iPSC Pluripotentes (Verde), Clones Transformados Malignos (Rojo) y Cuerpos Apoptóticos (Gris).
+     * Dinámica de reprogramación inducida por Doxiciclina acoplada a las ecuaciones de Yamanaka y escape neoplásico ante pérdida de función de *TP53*.
+  3. **Aceleración en GPU Metal (`src/metal/metal_compute.mm`):**
+     * Compute Shader de Metal (`cell_physics_kernel`) compilado para Apple M4.
+     * Cálculo de repulsión intercelular de esfera blanda, fricción viscosa en medio líquido y reflexión en el borde circular de la placa de Petri.
+     * Latencia de cómputo en GPU: **1.77 milisegundos** por paso temporal en memoria unificada compartida (`MTLResourceStorageModeShared`).
+  4. **Pestaña `[7] DIGITAL TWIN` en FTXUI (`src/ui/tui_app.cpp`):**
+     * Renderizado 2D de alta resolución de la placa de Petri mediante `ftxui::Canvas` con sub-píxeles Braille (`⢀⡀⣠⣾⣿`).
+     * Censo biológico poblacional en tiempo real (confluencia, índice mitótico, rendimiento iPSC, R-Score medio).
+     * Controles interactivos dedicados: `[D]` pulso de Yamanaka / doxiciclina, `[C]` rescate génico CRISPR-Cas9 in-situ, `[U]` insulto genotóxico UV, `[+]`/`[-]` ajuste de inóculo celular, `[R]` reinicio de cultivo.
+* **Pruebas y Verificación:**
+  * Compilación limpia con Clang C++20 y frameworks Metal/Accelerate (`make build`).
+  * Validación unitaria integral en `test_pipeline.cpp` confirmando el funcionamiento coordinado de todos los módulos.
+
 
