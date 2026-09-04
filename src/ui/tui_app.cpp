@@ -1,5 +1,6 @@
 #include "ui/tui_app.hpp"
 
+#include <iostream>
 #include <ftxui/component/app.hpp>
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/event.hpp>
@@ -7,6 +8,9 @@
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/dom/canvas.hpp>
 #include <ftxui/screen/color.hpp>
+
+#include "export/csv_exporter.hpp"
+#include "ipc/state_inspector.hpp"
 
 #include <chrono>
 #include <iomanip>
@@ -153,8 +157,79 @@ void GenomeForgeApp::init_simulation_state() {
     add_log("INFO", "Living Cell Digital Twin initialized: 180 cell agents in virtual Petri dish with Metal UMA physics.");
 }
 
+void GenomeForgeApp::save_live_state() {
+    genome::ipc::StateInspector::dump_live_state_json(
+        "data/live_state.json",
+        static_cast<int>(current_tab_),
+        vcf_parser_.get_active_locus(),
+        telemetry_.get_metrics(),
+        vcf_parser_,
+        yamanaka_sim_,
+        moe_engine_,
+        crispr_candidates_,
+        crispr_applied_,
+        cell_twin_
+    );
+}
+
+void GenomeForgeApp::export_datasets() {
+    std::string summary = genome::export_tools::CsvExporter::export_all_datasets(
+        "data",
+        cell_twin_.get_metrics(),
+        cell_twin_.get_cells(),
+        vcf_parser_.get_variants(),
+        tick_counter_
+    );
+    add_log("EXPORT", summary);
+}
+
+int GenomeForgeApp::run_headless(size_t max_ticks, bool export_csv, const std::string& snapshot_path) {
+    std::cout << "╔══════════════════════════════════════════════════════════════════════════════════╗\n";
+    std::cout << "║ ⌬ GENOMEFORGE-TUI :: HEADLESS SIMULATION ENGINE                                  ║\n";
+    std::cout << "╚══════════════════════════════════════════════════════════════════════════════════╝\n";
+    std::cout << "[*] Executing " << max_ticks << " simulation ticks in accelerated headless mode...\n";
+
+    for (size_t i = 0; i < max_ticks; ++i) {
+        tick_simulation();
+    }
+
+    genome::ipc::StateInspector::dump_live_state_json(
+        snapshot_path,
+        static_cast<int>(current_tab_),
+        vcf_parser_.get_active_locus(),
+        telemetry_.get_metrics(),
+        vcf_parser_,
+        yamanaka_sim_,
+        moe_engine_,
+        crispr_candidates_,
+        crispr_applied_,
+        cell_twin_
+    );
+
+    std::cout << "[+] Telemetry snapshot saved to: " << snapshot_path << "\n";
+
+    if (export_csv) {
+        export_datasets();
+        std::cout << "[+] Scientific CSV datasets exported to data/ directory.\n";
+    }
+
+    const auto& tm = cell_twin_.get_metrics();
+    std::cout << "\n--- SIMULATION SUMMARY ---\n"
+              << "  Elapsed Bio-Time:    " << tm.simulated_time_str << "\n"
+              << "  Total Living Cells:  " << tm.total_cells << "\n"
+              << "  Somatic Fibroblasts: " << tm.somatic_count << "\n"
+              << "  iPSC Stem Colonies:  " << tm.ipsc_count << "\n"
+              << "  Malignant Clones:    " << tm.transformed_count << "\n"
+              << "  Culture Confluence:  " << std::fixed << std::setprecision(1) << (tm.confluence * 100.0f) << "%\n"
+              << "  Average R-Score:     " << std::setprecision(4) << tm.average_r_score << "\n"
+              << "--------------------------\n";
+
+    return 0;
+}
+
 void GenomeForgeApp::tick_simulation() {
     telemetry_.update();
+    tick_counter_++;
 
     if (yamanaka_running_) {
         // Integración de ecuaciones diferenciales ordinarias por Runge-Kutta 4 (RK4)
@@ -168,6 +243,11 @@ void GenomeForgeApp::tick_simulation() {
 
         // Avance de física y ciclo celular del Gemelo Digital
         cell_twin_.step(0.05f);
+    }
+
+    // Volcado de estado cada 2 ticks para que el asistente IA o CLI pueda inspeccionar
+    if (tick_counter_ % 2 == 0) {
+        save_live_state();
     }
 }
 
@@ -194,38 +274,40 @@ int GenomeForgeApp::run() {
 
         auto header_element = vbox({
             hbox({
-                text("◈ GENOMEFORGE-TUI v1.0 ") | bold | color(Color::Cyan),
-                text(" | Apple Silicon [" + metrics.chip_model + "]") | color(Color::White),
+                text(" ⌬ GENOMEFORGE-TUI :: CYBER-BIOLAB HUD v2.0 ") | bold | color(Color::CyanLight),
+                text("⟦ ARCH: APPLE M4 | UMA ZERO-COPY ⟧") | bold | color(Color::White),
                 filler(),
-                text("vDSP/AMX: ") | color(Color::GrayLight),
-                text("[ACTIVE]") | bold | color(Color::Green),
-                text("  Metal GPU: ") | color(Color::GrayLight),
-                text("[SHARED ZERO-COPY]") | bold | color(Color::Green),
+                text("AMX: ") | color(Color::GrayLight),
+                text("[vDSP::ONLINE] ") | bold | color(Color::GreenLight),
+                text("GPU: ") | color(Color::GrayLight),
+                text("[METAL::SHARED-UMA] ") | bold | color(Color::GreenLight),
+                text("TELEMETRY: ") | color(Color::GrayLight),
+                text("[DARWIN-MACH]") | bold | color(Color::MagentaLight),
             }),
             separator(),
             hbox({
-                text("CPU Usage: ") | color(Color::GrayLight),
+                text(" CPU: ") | color(Color::GrayLight),
                 text(std::to_string(static_cast<int>(metrics.total_cpu_usage)) + "% ") | bold | color(Color::Yellow),
                 gauge(metrics.total_cpu_usage / 100.0f) | size(WIDTH, EQUAL, 10) | color(Color::Yellow),
                 text("  P-Cores (" + std::to_string(metrics.p_core_count) + "): ") | color(Color::GrayLight),
-                text(std::to_string(static_cast<int>(metrics.p_core_avg_usage)) + "% ") | color(Color::Cyan),
-                gauge(metrics.p_core_avg_usage / 100.0f) | size(WIDTH, EQUAL, 8) | color(Color::Cyan),
+                text(std::to_string(static_cast<int>(metrics.p_core_avg_usage)) + "% ") | color(Color::CyanLight),
+                gauge(metrics.p_core_avg_usage / 100.0f) | size(WIDTH, EQUAL, 8) | color(Color::CyanLight),
                 text("  E-Cores (" + std::to_string(metrics.e_core_count) + "): ") | color(Color::GrayLight),
-                text(std::to_string(static_cast<int>(metrics.e_core_avg_usage)) + "% ") | color(Color::Blue),
-                gauge(metrics.e_core_avg_usage / 100.0f) | size(WIDTH, EQUAL, 8) | color(Color::Blue),
+                text(std::to_string(static_cast<int>(metrics.e_core_avg_usage)) + "% ") | color(Color::BlueLight),
+                gauge(metrics.e_core_avg_usage / 100.0f) | size(WIDTH, EQUAL, 8) | color(Color::BlueLight),
                 filler(),
-                text("Unified RAM: ") | color(Color::GrayLight),
-                text(ram_str + " ") | bold | color(Color::Magenta),
-                gauge(metrics.memory_used_percent / 100.0f) | size(WIDTH, EQUAL, 10) | color(Color::Magenta),
+                text("UMA Memory: ") | color(Color::GrayLight),
+                text(ram_str + " ") | bold | color(Color::MagentaLight),
+                gauge(metrics.memory_used_percent / 100.0f) | size(WIDTH, EQUAL, 10) | color(Color::MagentaLight),
             })
         }) | border;
 
-        // 2. BARRA DE PESTAÑAS (TABS)
+        // 2. BARRA DE PESTAÑAS (TABS CYBER-HUD)
         auto make_tab_button = [&](AppTab tab, const std::string& label, const std::string& key_num) {
             bool is_active = (current_tab_ == tab);
-            std::string text_str = " [" + key_num + "] " + label + " ";
+            std::string text_str = " ⟨ " + key_num + ": " + label + " ⟩ ";
             if (is_active) {
-                return text(text_str) | bold | color(Color::Black) | bgcolor(Color::Cyan);
+                return text(text_str) | bold | color(Color::Black) | bgcolor(Color::CyanLight);
             }
             return text(text_str) | color(Color::GrayLight);
         };
@@ -733,86 +815,179 @@ int GenomeForgeApp::run() {
             const auto& t_metrics = cell_twin_.get_metrics();
             const auto& cells = cell_twin_.get_cells();
 
-            // Canvas para la placa de Petri (110x68 pixels con sub-píxeles Braille)
-            int c_width = 110;
-            int c_height = 68;
+            // Canvas para la placa de Petri (114x70 pixels con sub-píxeles Braille)
+            int c_width = 114;
+            int c_height = 70;
             Canvas petri_canvas(c_width, c_height);
 
-            // Borde exterior y anillo de la placa de Petri
-            petri_canvas.DrawPointEllipse(c_width / 2, c_height / 2, (c_width / 2) - 4, (c_height / 2) - 3, Color::GrayDark);
+            // Borde exterior, bisel e interior de la placa de Petri (Cyber Incubator style)
+            petri_canvas.DrawPointEllipse(c_width / 2, c_height / 2, (c_width / 2) - 3, (c_height / 2) - 2, Color::Cyan);
             petri_canvas.DrawPointEllipse(c_width / 2, c_height / 2, (c_width / 2) - 5, (c_height / 2) - 4, Color::GrayDark);
+            
+            // Retícula óptica central y guías milimétricas del microscopio
+            int cx = c_width / 2;
+            int cy = c_height / 2;
+            petri_canvas.DrawPointLine(cx - 3, cy, cx + 3, cy, Color::GrayDark);
+            petri_canvas.DrawPointLine(cx, cy - 2, cx, cy + 2, Color::GrayDark);
 
-            // Renderizado de cada célula viva según su fenotipo biológico
+            // Renderizado citomorfológico avanzado de cada célula según su fenotipo y estado de división
             for (const auto& cell : cells) {
                 int px = static_cast<int>((c_width / 2.0f) + (cell.x / 45.0f) * ((c_width / 2.0f) - 6));
                 int py = static_cast<int>((c_height / 2.0f) + (cell.y / 45.0f) * ((c_height / 2.0f) - 5));
 
-                if (px >= 0 && px < c_width && py >= 0 && py < c_height) {
-                    Color cell_col = Color::BlueLight;
-                    switch (cell.phenotype) {
-                        case genome::twin::CellPhenotype::SomaticFibroblast:
-                            cell_col = Color::BlueLight;
-                            break;
-                        case genome::twin::CellPhenotype::IntermediateReprog:
-                            cell_col = Color::Yellow;
-                            break;
-                        case genome::twin::CellPhenotype::PluripotentIPSC:
-                            cell_col = Color::GreenLight;
-                            break;
-                        case genome::twin::CellPhenotype::TransformedMalignant:
-                            cell_col = Color::Red;
-                            break;
-                        case genome::twin::CellPhenotype::ApoptoticCorpse:
-                            cell_col = Color::GrayDark;
-                            break;
+                if (px < 3 || px >= c_width - 3 || py < 3 || py >= c_height - 3) continue;
+
+                // 1. Células en mitosis activa con surco de clivaje / citocinesis
+                if (cell.cleavage_state > 0) {
+                    if (cell.cleavage_state == 1) {
+                        // Anafase tardía: constricción y reloj de arena (dumbbell)
+                        petri_canvas.DrawPoint(px - 1, py, true, Color::MagentaLight);
+                        petri_canvas.DrawPoint(px + 1, py, true, Color::MagentaLight);
+                        petri_canvas.DrawPoint(px, py, true, Color::White);
+                    } else {
+                        // Telofase / doblete celular listo para separación
+                        petri_canvas.DrawPoint(px - 2, py, true, Color::MagentaLight);
+                        petri_canvas.DrawPoint(px - 1, py, true, Color::MagentaLight);
+                        petri_canvas.DrawPoint(px + 1, py, true, Color::MagentaLight);
+                        petri_canvas.DrawPoint(px + 2, py, true, Color::MagentaLight);
                     }
-                    petri_canvas.DrawPoint(px, py, true, cell_col);
-                    if (cell.phenotype == genome::twin::CellPhenotype::PluripotentIPSC || 
-                        cell.phenotype == genome::twin::CellPhenotype::TransformedMalignant) {
-                        petri_canvas.DrawPoint(std::min(c_width - 1, px + 1), py, true, cell_col);
-                        petri_canvas.DrawPoint(px, std::min(c_height - 1, py + 1), true, cell_col);
+                    continue;
+                }
+
+                // 2. Morfología según fenotipo celular
+                switch (cell.phenotype) {
+                    case genome::twin::CellPhenotype::SomaticFibroblast: {
+                        // Fibroblasto: morfología fusiforme alargada (spindle) orientada
+                        float v_len = std::hypot(cell.vx, cell.vy);
+                        int dx = 1, dy = 0;
+                        if (v_len > 0.1f) {
+                            dx = static_cast<int>(std::round((cell.vx / v_len) * 1.5f));
+                            dy = static_cast<int>(std::round((cell.vy / v_len) * 1.2f));
+                        } else {
+                            // Orientación pseudo-aleatoria persistente basada en cell_id
+                            int angle_idx = (cell.cell_id % 4);
+                            if (angle_idx == 0) { dx = 1; dy = 0; }
+                            else if (angle_idx == 1) { dx = 1; dy = 1; }
+                            else if (angle_idx == 2) { dx = 0; dy = 1; }
+                            else { dx = -1; dy = 1; }
+                        }
+                        // Núcleo central azul cian
+                        petri_canvas.DrawPoint(px, py, true, Color::Cyan);
+                        // Polos polares del huso
+                        petri_canvas.DrawPoint(px + dx, py + dy, true, Color::BlueLight);
+                        petri_canvas.DrawPoint(px - dx, py - dy, true, Color::BlueLight);
+                        break;
+                    }
+
+                    case genome::twin::CellPhenotype::IntermediateReprog: {
+                        // MET Intermedio: célula en redondeamiento de transición mesénquima-epitelio
+                        petri_canvas.DrawPoint(px, py, true, Color::YellowLight);
+                        petri_canvas.DrawPoint(px + 1, py, true, Color::Yellow);
+                        petri_canvas.DrawPoint(px, py + 1, true, Color::Yellow);
+                        break;
+                    }
+
+                    case genome::twin::CellPhenotype::PluripotentIPSC: {
+                        // Colonia iPSC: colonia epitelial compacta, borde nítido, núcleo prominente esmeralda
+                        petri_canvas.DrawPoint(px, py, true, Color::GreenLight);
+                        petri_canvas.DrawPoint(px + 1, py, true, Color::Green);
+                        petri_canvas.DrawPoint(px - 1, py, true, Color::Green);
+                        petri_canvas.DrawPoint(px, py + 1, true, Color::Green);
+                        petri_canvas.DrawPoint(px, py - 1, true, Color::Green);
+                        break;
+                    }
+
+                    case genome::twin::CellPhenotype::TransformedMalignant: {
+                        // Neoplasia Maligna: pleomorfismo nuclear severo, hipercromasia, atipia celular
+                        petri_canvas.DrawPoint(px, py, true, Color::RedLight);
+                        petri_canvas.DrawPoint(px + 1, py, true, Color::Red);
+                        petri_canvas.DrawPoint(px - 1, py, true, Color::Red);
+                        petri_canvas.DrawPoint(px, py + 1, true, Color::Red);
+                        petri_canvas.DrawPoint(px + 1, py + 1, true, Color::RedLight);
+                        petri_canvas.DrawPoint(px - 1, py - 1, true, Color::Red);
+                        break;
+                    }
+
+                    case genome::twin::CellPhenotype::ApoptoticCorpse: {
+                        // Cuerpo apoptótico: blebbing celular y fragmentación en cuerpos apoptóticos (debris)
+                        petri_canvas.DrawPoint(px, py, true, Color::GrayLight);
+                        petri_canvas.DrawPoint(px + 1, py - 1, true, Color::GrayDark);
+                        petri_canvas.DrawPoint(px - 1, py + 1, true, Color::GrayDark);
+                        break;
                     }
                 }
             }
 
             auto petri_box = vbox({
                 hbox({
-                    text("◈ PLACA DE PETRI VIRTUAL (CULTIVO 2D EN TIEMPO REAL)") | bold | color(Color::Cyan),
+                    text("⌬ CYBER-INCUBATOR [CHAMBER 01]") | bold | color(Color::Cyan),
+                    text(" │ ") | color(Color::GrayDark),
+                    text("ESC: ") | color(Color::GrayLight),
+                    text("⟨ " + cell_twin_.get_time_scale_label() + " ⟩") | bold | color(Color::YellowLight),
+                    text(" │ ") | color(Color::GrayDark),
+                    text("RELOJ: ") | color(Color::GrayLight),
+                    text(cell_twin_.get_simulated_time_string()) | bold | color(Color::GreenLight),
                     filler(),
-                    text(t_metrics.dox_active ? " [OSKM: INDUCIDO] " : " [OSKM: BASAL] ") | bold | 
-                         (t_metrics.dox_active ? color(Color::Green) : color(Color::GrayLight)),
-                    text(t_metrics.crispr_applied ? " [CRISPR: RESCATADO] " : " [CRISPR: NINGUNO] ") | bold | 
-                         (t_metrics.crispr_applied ? color(Color::Cyan) : color(Color::GrayLight)),
-                    text(t_metrics.uv_insult_active ? " [UV: INSULTO ACTIVO] " : " [UV: NORMAL] ") | bold | 
-                         (t_metrics.uv_insult_active ? color(Color::Red) : color(Color::GrayLight)),
+                    text(t_metrics.dox_active ? "⟦ OSKM: INDUCIDO ⟧" : "⟦ OSKM: BASAL ⟧") | bold | 
+                         (t_metrics.dox_active ? color(Color::Yellow) : color(Color::GrayDark)),
+                    text(" "),
+                    text(t_metrics.crispr_applied ? "⟦ CRISPR: TP53 RESCATADO ⟧" : "⟦ CRISPR: INACTIVO ⟧") | bold | 
+                         (t_metrics.crispr_applied ? color(Color::Cyan) : color(Color::GrayDark)),
+                    text(" "),
+                    text(t_metrics.uv_insult_active ? "⟦ UV: INSULTO GENOTÓXICO ⟧" : "⟦ UV: ESTABLE ⟧") | bold | 
+                         (t_metrics.uv_insult_active ? color(Color::RedLight) : color(Color::GrayDark)),
                 }),
                 separator(),
                 canvas(std::move(petri_canvas)) | center | flex,
                 separator(),
                 hbox({
-                    text(" Leyenda: ") | bold | color(Color::White),
-                    text("● Somática (Fibroblasto) ") | color(Color::BlueLight),
+                    text(" ◈ LEYENDA CYTO: ") | bold | color(Color::White),
+                    text("━═━ Fibroblasto Huso ") | color(Color::Cyan),
                     text("◐ Intermedio MET ") | color(Color::Yellow),
-                    text("● Colonia iPSC ") | bold | color(Color::GreenLight),
-                    text("▲ Maligna (TP53-Mut) ") | bold | color(Color::Red),
-                    text("✕ Apoptosis ") | color(Color::GrayDark),
+                    text("⬡ Colonia iPSC ") | bold | color(Color::GreenLight),
+                    text("▲ Neoplasia Pleomórfica ") | bold | color(Color::RedLight),
+                    text("⸫ Cuerpos Apoptosis ") | color(Color::GrayDark),
+                    text("⧖ Clivaje Mitótico ") | bold | color(Color::MagentaLight),
                 })
             }) | border | flex;
+
+            // Escala temporal visual indicando el multiplicador actual
+            std::string time_badge = "1x";
+            switch (cell_twin_.get_time_warp()) {
+                case genome::twin::TimeWarpScale::Seconds:  time_badge = "1 SEC/S [1x]"; break;
+                case genome::twin::TimeWarpScale::Minutes:  time_badge = "1 MIN/S [60x]"; break;
+                case genome::twin::TimeWarpScale::Hours:    time_badge = "1 HR/S [3,600x]"; break;
+                case genome::twin::TimeWarpScale::Days:     time_badge = "1 DÍA/S [86,400x]"; break;
+                case genome::twin::TimeWarpScale::Weeks:    time_badge = "1 SEM/S [604,800x]"; break;
+                case genome::twin::TimeWarpScale::Months:   time_badge = "1 MES/S [2.59Mx]"; break;
+                case genome::twin::TimeWarpScale::Years:    time_badge = "1 AÑO/S [31.5Mx]"; break;
+                case genome::twin::TimeWarpScale::Decades:  time_badge = "1 DÉC/S [315Mx]"; break;
+            }
 
             auto twin_telemetry_box = vbox({
                 text("◈ CENSO BIOLÓGICO Y POBLACIONAL") | bold | color(Color::Cyan),
                 separator(),
                 hbox({ text("Población Total: ") | color(Color::GrayLight), text(std::to_string(t_metrics.total_cells) + " células") | bold | color(Color::White) }),
-                hbox({ text("Fibroblastos Somáticos: ") | color(Color::GrayLight), text(std::to_string(t_metrics.somatic_count)) | color(Color::BlueLight) }),
+                hbox({ text("Fibroblastos Somáticos: ") | color(Color::GrayLight), text(std::to_string(t_metrics.somatic_count)) | color(Color::Cyan) }),
                 hbox({ text("Transición Intermedia (MET): ") | color(Color::GrayLight), text(std::to_string(t_metrics.intermediate_count)) | color(Color::Yellow) }),
                 hbox({ text("Colonias Madre Pluripotentes (iPSC): ") | color(Color::GrayLight), text(std::to_string(t_metrics.ipsc_count)) | bold | color(Color::GreenLight) }),
-                hbox({ text("Clones Malignos Transformados: ") | color(Color::GrayLight), text(std::to_string(t_metrics.transformed_count)) | bold | color(Color::Red) }),
+                hbox({ text("Clones Malignos Transformados: ") | color(Color::GrayLight), text(std::to_string(t_metrics.transformed_count)) | bold | color(Color::RedLight) }),
                 hbox({ text("Células en Apoptosis: ") | color(Color::GrayLight), text(std::to_string(t_metrics.apoptotic_count)) | color(Color::GrayDark) }),
+                separator(),
+                text("◈ CONTROLADOR TEMPORAL (TIME WARP)") | bold | color(Color::YellowLight),
+                separator(),
+                hbox({ text("Multiplicador: ") | color(Color::GrayLight), text(time_badge) | bold | color(Color::YellowLight) }),
+                hbox({ text("Reloj Bio: ") | color(Color::GrayLight), text(cell_twin_.get_simulated_time_string()) | bold | color(Color::GreenLight) }),
+                hbox({
+                    text("Atajos: ") | color(Color::GrayLight),
+                    text("[ [ ] ") | bold | color(Color::YellowLight), text("Frenar  ") | color(Color::White),
+                    text("[ ] ] ") | bold | color(Color::YellowLight), text("Acelerar") | color(Color::White),
+                }),
                 separator(),
                 text("◈ DINÁMICA DE REPROGRAMACIÓN Y RIESGO") | bold | color(Color::Cyan),
                 separator(),
                 hbox({
-                    text("Confluencia del Cultivo: ") | color(Color::GrayLight),
+                    text("Confluencia Cultivo: ") | color(Color::GrayLight),
                     text(std::to_string(static_cast<int>(t_metrics.confluence * 100.0f)) + "% ") | color(Color::White),
                     gauge(t_metrics.confluence) | size(WIDTH, EQUAL, 12) | color(Color::Cyan)
                 }),
@@ -827,24 +1002,25 @@ int GenomeForgeApp::run() {
                     gauge(t_metrics.ipsc_efficiency / 100.0f) | size(WIDTH, EQUAL, 12) | color(Color::Green)
                 }),
                 hbox({
-                    text("R-Score Medio Poblacional: ") | color(Color::GrayLight),
+                    text("R-Score Medio Dish: ") | color(Color::GrayLight),
                     text(std::to_string(t_metrics.average_r_score).substr(0, 4) + " ") | bold | 
-                         (t_metrics.average_r_score > 0.5f ? color(Color::Red) : color(Color::Green)),
+                         (t_metrics.average_r_score > 0.5f ? color(Color::RedLight) : color(Color::Green)),
                     gauge(t_metrics.average_r_score) | size(WIDTH, EQUAL, 12) | 
-                         (t_metrics.average_r_score > 0.5f ? color(Color::Red) : color(Color::Green))
+                         (t_metrics.average_r_score > 0.5f ? color(Color::RedLight) : color(Color::Green))
                 }),
                 separator(),
-                text("◈ CONTROLES BIOLÓGICOS DEL GEMELO DIGITAL") | bold | color(Color::Cyan),
+                text("◈ CONTROLES BIOLÓGICOS Y EXPORTACIÓN") | bold | color(Color::Cyan),
                 separator(),
                 vbox({
+                    text("[X] EXPORTAR DATASETS CSV (Censo/Células/VCF)") | bold | color(Color::GreenLight),
                     text("[D] Inyectar/Suspender Doxiciclina (OSKM)") | bold | color(Color::Yellow),
-                    text("[C] Terapia CRISPR-Cas9 in-situ (Rescate TP53)") | bold | color(Color::Green),
+                    text("[C] Terapia CRISPR-Cas9 in-situ (Rescate TP53)") | bold | color(Color::Cyan),
                     text("[U] Estrés Genotóxico (Irradiación UV)") | bold | color(Color::Magenta),
-                    text("[+] / [-] Inocular / Remover Células") | color(Color::Cyan),
+                    text("[+] / [-] Inocular / Remover Células (±25)") | color(Color::Cyan),
                     text("[R] Reset Cultivo a Estado Basal") | color(Color::White),
                     text("[Espacio] Pausar / Reanudar Dinámica") | color(Color::GrayLight),
                 })
-            }) | border | size(WIDTH, EQUAL, 46);
+            }) | border | size(WIDTH, EQUAL, 48);
 
             active_view = hbox({
                 petri_box,
@@ -854,14 +1030,16 @@ int GenomeForgeApp::run() {
 
         // 4. FOOTER
         auto footer = hbox({
-            text(" Atajos: ") | bold | color(Color::White),
-            text("[1..7] ") | bold | color(Color::Cyan), text("Pestañas  ") | color(Color::GrayLight),
-            text("[Tab] ") | bold | color(Color::Cyan), text("Ciclar  ") | color(Color::GrayLight),
-            text("[L] ") | bold | color(Color::Yellow), text("Conmutar Gen  ") | color(Color::GrayLight),
-            text("[D] ") | bold | color(Color::Green), text("Dox OSKM  ") | color(Color::GrayLight),
-            text("[C] ") | bold | color(Color::Cyan), text("CRISPR Rescue  ") | color(Color::GrayLight),
-            text("[U] ") | bold | color(Color::Magenta), text("UV Stress  ") | color(Color::GrayLight),
-            text("[Espacio] ") | bold | color(Color::Cyan), text("Pausar  ") | color(Color::GrayLight),
+            text(" ⟦ ATAJOS ⟧ ") | bold | color(Color::Cyan),
+            text("[1..7] ") | bold | color(Color::White), text("Pestañas  ") | color(Color::GrayLight),
+            text("[Tab] ") | bold | color(Color::White), text("Ciclar  ") | color(Color::GrayLight),
+            text("[ [ / ] ] ") | bold | color(Color::YellowLight), text("Time Warp  ") | color(Color::GrayLight),
+            text("[X] ") | bold | color(Color::GreenLight), text("Exportar CSV  ") | color(Color::GrayLight),
+            text("[L] ") | bold | color(Color::Yellow), text("Locus  ") | color(Color::GrayLight),
+            text("[D] ") | bold | color(Color::Yellow), text("OSKM  ") | color(Color::GrayLight),
+            text("[C] ") | bold | color(Color::Cyan), text("CRISPR  ") | color(Color::GrayLight),
+            text("[U] ") | bold | color(Color::RedLight), text("UV  ") | color(Color::GrayLight),
+            text("[Espacio] ") | bold | color(Color::White), text("Pausa  ") | color(Color::GrayLight),
             text("[Q] ") | bold | color(Color::Red), text("Salir") | color(Color::GrayLight),
         }) | border;
 
@@ -929,6 +1107,25 @@ int GenomeForgeApp::run() {
         if (event == Event::Character('-') || event == Event::Character('_')) {
             cell_twin_.adjust_population(-25);
             add_log("TWIN", "Aspirated -25 cells from virtual Petri dish.");
+            return true;
+        }
+
+        // Controles de escala temporal (Time Warp)
+        if (event == Event::Character('[') || event == Event::Character('{')) {
+            cell_twin_.slow_down_time();
+            add_log("TIME", "Biological simulation time slowed to: " + cell_twin_.get_time_scale_label());
+            return true;
+        }
+
+        if (event == Event::Character(']') || event == Event::Character('}')) {
+            cell_twin_.speed_up_time();
+            add_log("TIME", "Biological simulation time accelerated to: " + cell_twin_.get_time_scale_label());
+            return true;
+        }
+
+        // Exportación de datasets científicos a CSV
+        if (event == Event::Character('x') || event == Event::Character('X')) {
+            export_datasets();
             return true;
         }
 

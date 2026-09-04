@@ -13,7 +13,13 @@ build: $(BUILD_DIR)/Makefile
 run: build
 	./$(BUILD_DIR)/genome_forge --vcf data/sample_patient.vcf
 
+headless: build
+	./$(BUILD_DIR)/genome_forge --vcf data/1000genomes_clinical_panel.vcf --headless --ticks 50 --export-csv
+
+inspect: build
+	./$(BUILD_DIR)/genome_forge --inspect
+
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: all build run clean
+.PHONY: all build run headless inspect clean

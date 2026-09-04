@@ -15,3 +15,7 @@ lib/
 # Temporary test binaries
 test_*
 *.tmp
+
+# Generated live state and data exports
+data/live_state.json*
+data/export_*.csv

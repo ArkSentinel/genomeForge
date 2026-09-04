@@ -33,13 +33,21 @@ public:
     // Inicia el loop de renderizado interactivo en la terminal
     int run();
 
+    // Ejecuta la simulación en modo headless (sin interfaz) para auditoría o pruebas
+    int run_headless(size_t max_ticks, bool export_csv = true, const std::string& snapshot_path = "data/live_state.json");
+
+    // Exporta datasets en formato CSV
+    void export_datasets();
+
 private:
     void init_simulation_state();
     void add_log(const std::string& level, const std::string& message);
     void tick_simulation();
     void switch_locus_by_index(size_t index);
     void cycle_locus();
+    void save_live_state();
 
+    size_t tick_counter_{0};
     std::string vcf_path_;
     genome::vcf::VcfParser vcf_parser_;
     genome::system::TelemetryCollector telemetry_;

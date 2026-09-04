@@ -25,6 +25,17 @@ enum class CellPhenotype : uint8_t {
     ApoptoticCorpse = 4      // Cell undergoing apoptosis (Gray)
 };
 
+enum class TimeWarpScale : uint8_t {
+    Seconds = 0,    // 1x (Realtime)
+    Minutes = 1,    // 60x
+    Hours = 2,      // 3,600x
+    Days = 3,       // 86,400x
+    Weeks = 4,      // 604,800x
+    Months = 5,     // 2,592,000x
+    Years = 6,      // 31,536,000x
+    Decades = 7     // 315,360,000x
+};
+
 // Alineación estricta a 64 bytes para línea de caché ARM64
 struct alignas(64) CellAgent {
     float x{0.0f};           // Coordenada X en la placa de Petri
@@ -35,7 +46,8 @@ struct alignas(64) CellAgent {
     float mass{1.0f};        // Masa inercial
     CellCyclePhase phase{CellCyclePhase::G1_Growth};
     CellPhenotype phenotype{CellPhenotype::SomaticFibroblast};
-    uint8_t pad0[2]{0, 0};   // Alineamiento a múltiplo de 4 bytes
+    uint8_t cleavage_state{0}; // 0 = unilocular, 1 = constricción anafásica, 2 = telofase
+    uint8_t pad0{0};         // Alineamiento a múltiplo de 4 bytes
     float cycle_clock{0.0f}; // Progreso en la fase actual (0.0 a 1.0)
     float P_score{0.05f};    // Nivel de Pluripotencia (Oct4/Sox2/Nanog)
     float S_score{0.95f};    // Nivel de Identidad Somática
@@ -64,6 +76,10 @@ struct PopulationMetrics {
     bool dox_active{false};          // Pulso de doxiciclina / Yamanaka activo
     bool crispr_applied{false};      // Edición génica administrada
     bool uv_insult_active{false};    // Estrés por radiación genotóxica
+    TimeWarpScale time_warp{TimeWarpScale::Seconds};
+    double time_multiplier{1.0};
+    double simulated_seconds{0.0};
+    std::string simulated_time_str{"T+ 000y:00m:00d:00h:00m:00s"};
 };
 
 class CellTwinSimulator {
@@ -75,7 +91,16 @@ public:
     void reset();
 
     // Avanza un paso temporal de la biofísica y del ciclo celular
-    void step(float dt = 0.05f);
+    void step(float base_dt = 0.05f);
+
+    // Controles de escala temporal biológica (Time Warp)
+    void speed_up_time();
+    void slow_down_time();
+    void set_time_warp(TimeWarpScale scale);
+    TimeWarpScale get_time_warp() const { return time_warp_; }
+    double get_time_multiplier() const;
+    std::string get_time_scale_label() const;
+    const std::string& get_simulated_time_string() const { return metrics_.simulated_time_str; }
 
     // Controles biológicos interactivos
     void toggle_doxycycline();
@@ -91,15 +116,19 @@ public:
     bool is_crispr_applied() const { return crispr_applied_; }
 
 private:
-    void update_cell_cycle(CellAgent& cell, float dt, std::vector<CellAgent>& new_daughters);
+    void update_cell_cycle(CellAgent& cell, float effective_dt, std::vector<CellAgent>& new_daughters);
     void update_physics_cpu(float dt);
     void compute_population_metrics();
+    void update_time_string();
 
     float dish_radius_{45.0f};       // Radio del cultivo en la placa virtual
     bool dox_active_{false};         // Presencia de inductor Yamanaka
     bool crispr_applied_{false};     // Si se corrigió TP53
     bool uv_insult_active_{false};   // Daño inducido en ADN
     float uv_timer_{0.0f};
+
+    TimeWarpScale time_warp_{TimeWarpScale::Seconds};
+    double simulated_seconds_{0.0};
 
     uint32_t next_cell_id_{1};
     std::vector<CellAgent> cells_;

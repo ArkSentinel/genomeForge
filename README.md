@@ -60,9 +60,19 @@
    * Detección de motivos PAM `NGG`, extracción de protospacers de 20 nt y cálculo de eficacia con heurísticas Doench / Rule Set 2.
    * Cribado de *off-targets* mediante distancia de Hamming vectorizada en ARM NEON.
    * Simulación in-silico de reparación dirigida por homología (HDR), restaurando el genoma salvaje y recalculando la dinámica celular al instante.
-6. **Interfaz TUI Reactiva en 6 Pestañas (FTXUI):**
-   * Señalética científica sobria y de laboratorio (`◈`, `▶`, `❚❚`, `[!]`, `[x]`, `[+]`, `[-]`).
-   * Navegación por pestañas independientes a pantalla completa (`[1]` a `[6]`).
+6. **Interfaz TUI Reactiva en 7 Pestañas (FTXUI) y Rediseño Cyber-HUD:**
+   * Estética biolab sci-fi de alta tecnología (`⟦ ARCH: APPLE M4 ⟧`, `[AMX::vDSP ONLINE]`, `[GPU::METAL UMA]`).
+   * Navegación por pestañas independientes a pantalla completa (`[1]` a `[7]`).
+7. **Gemelo Digital Celular (Placa de Petri 2D & ABM):**
+   * Placa de Petri virtual con biofísica de repulsión elástica acelerada en Metal GPU.
+   * Renderizado citomorfológico de alta resolución en sub-píxeles Braille: husos fibroblásticos, células intermedias MET, colonias iPSC esmeralda, clones neoplásicos sobredimensionados, fragmentos apoptóticos y surcos de división mitótica.
+8. **Controlador Temporal Multi-Escala (*Time Warp*):**
+   * Escalado de la velocidad de simulación a lo largo de 8 órdenes de magnitud (Segundos, Minutos, Horas, Días, Semanas, Meses, Años, Décadas) con atajos `[` y `]`.
+9. **Modo Headless e Inspector de Estado para Agentes IA:**
+   * Ejecución no interactiva (`--headless`, `make headless`) para pipelines automatizados.
+   * Telemetría estructurada atómica en `data/live_state.json` e informe de inspección CLI (`--inspect`, `make inspect`).
+10. **Exportador Científico a CSV:**
+    * Exportación bajo demanda (`[X]` o `--export-csv`) de censos poblacionales, agentes celulares individuales y variantes genómicas en `data/export_*.csv`.
 
 ---
 
@@ -89,18 +99,27 @@ Desde la raíz del repositorio:
 make build
 ```
 
-### 2. Ejecución
-Para iniciar con el archivo del paciente sintético:
+### 2. Ejecución Interactiva (Cyber-HUD)
+Para iniciar con el panel multicromosómico clínico:
 ```bash
-make run
+./build/genome_forge --vcf data/1000genomes_clinical_panel.vcf
 ```
 
-Para iniciar con el genoma auténtico del **Proyecto 1000 Genomas**:
+### 3. Modo Headless (Simulación sin interfaz gráfica)
 ```bash
-./build/genome_forge --vcf data/1000genomes_patient_tp53.vcf
+make headless
+# o con parámetros personalizados:
+./build/genome_forge --vcf data/1000genomes_clinical_panel.vcf --headless --ticks 100 --export-csv
 ```
 
-Para consultar las opciones de línea de comandos:
+### 4. Inspector de Estado en Vivo (para CLI o Agentes IA)
+```bash
+make inspect
+# o inspeccionando un snapshot específico:
+./build/genome_forge --inspect data/live_state.json
+```
+
+Para consultar todas las opciones de línea de comandos:
 ```bash
 ./build/genome_forge --help
 ```
@@ -112,16 +131,24 @@ Para consultar las opciones de línea de comandos:
 | Atajo | Acción |
 | :---: | :--- |
 | **`1`** | Pestaña **`[1] DASHBOARD`**: Resumen clínico del paciente, monitor R-Score, estado del pulso y auditoría. |
-| **`2`** | Pestaña **`[2] VCF EXPLORER`**: Tabla genómica a pantalla completa, frecuencias alélicas, cobertura DP y ventana de secuencia nucleotídica. |
-| **`3`** | Pestaña **`[3] YAMANAKA (OSKM)`**: Ecuaciones diferenciales continuas ODE, niveles de factores OSKM y gráfica de sparkline temporal del R-Score. |
+| **`2`** | Pestaña **`[2] VCF EXPLORER`**: Tabla genómica a pantalla completa, frecuencias alélicas, cobertura DP y conmutación de locus con `[L]`. |
+| **`3`** | Pestaña **`[3] YAMANAKA (OSKM)`**: Ecuaciones diferenciales continuas ODE, niveles de factores OSKM y gráfica sparkline del R-Score. |
 | **`4`** | Pestaña **`[4] MoE ROUTER`**: Arquitectura Mixture of Experts, pesos de la Gating Network, selección Top-2 y telemetría vDSP (CPU) vs Metal (GPU). |
 | **`5`** | Pestaña **`[5] CRISPR STUDIO`**: Catálogo de ARNs guía (gRNA), análisis PAM NGG, scoring Cas-OFFinder y control de corte HDR. |
 | **`6`** | Pestaña **`[6] SYSTEM & LOGS`**: Telemetría granular por núcleo de CPU (P-Cores vs E-Cores), páginas de memoria unificada y log de auditoría. |
+| **`7`** | Pestaña **`[7] DIGITAL TWIN`**: Placa de Petri virtual en 2D, dinámica de poblaciones, citomorfología, Time Warp y rescate CRISPR. |
 | **`Tab`** | Ciclar ordenadamente a la siguiente pestaña. |
+| **`[` / `]`** | **Time Warp:** Desacelerar / acelerar la velocidad de simulación biológica (Segundos a Décadas). |
+| **`X`** | **Exportar CSV:** Guarda datasets científicos de censo, agentes y variantes en `data/`. |
+| **`L`** | **Conmutar Locus Clínico:** Cicla entre *TP53*, *CDKN2A*, *PTEN*, *MYC*, *BRCA1*, *EGFR*, *OCT4*, *SOX2*. |
+| **`D`** | **Doxiciclina OSKM:** Inyecta o retira el inductor de reprogramación en el medio de cultivo. |
+| **`C`** | **CRISPR In-Situ:** Terapia génica en caliente para rescatar mutaciones en el cultivo del gemelo digital. |
+| **`U`** | **Estrés Genotóxico:** Dispara irradiación UV para poner a prueba los puntos de control de p53. |
+| **`+` / `-`** | Inocular / aspirar células en el cultivo de la placa de Petri (±25). |
 | **`↑` / `↓` o `k` / `j`** | Navegar por la tabla de variantes (pestaña 2) o por la lista de guías CRISPR (pestaña 5). |
-| **`E`** | **Aplicar corrección CRISPR virtual (HDR repair):** Sustituye el codón mutado en *TP53*, reevalúa la dinámica celular y desploma el R-Score de 0.88 a 0.12 (nivel seguro). |
-| **`R`** | **Reiniciar genoma:** Reinyecta la mutación patogénica para re-evaluar la alerta oncogénica. |
-| **`Espacio`** | Pausar o reanudar el pulso dinámico de los factores de Yamanaka. |
+| **`E`** | **Corrección CRISPR virtual (HDR):** Aplica reparación in-silico sobre la variante VCF seleccionada. |
+| **`R`** | **Reiniciar:** Restablece el cultivo celular (en Tab 7) o restablece el genoma original del paciente. |
+| **`Espacio`** | Pausar o reanudar dinámica celular y ODEs. |
 | **`Q` o `Esc`** | Salir limpiamente de la aplicación. |
 
 ---
@@ -151,7 +178,7 @@ Para calibrar el sistema con datos de secuenciación humana real sin saturar el 
 ./scripts/fetch_1000genomes_slice.sh
 ```
 
-El dataset resultante en `data/1000genomes_patient_tp53.vcf` contiene polimorfismos reales con metadatos estándar de 1000 Genomas Phase 3 (GRCh38).
+El dataset resultante en `data/1000genomes_clinical_panel.vcf` contiene polimorfismos reales con metadatos estándar de 1000 Genomas Phase 3 (GRCh38).
 
 ---
 
@@ -159,3 +186,4 @@ El dataset resultante en `data/1000genomes_patient_tp53.vcf` contiene polimorfis
 
 * [`docs/SPECS.md`](docs/SPECS.md): Especificación técnica exhaustiva, diseño de structs ARM64, ecuaciones matemáticas y arquitectura de software.
 * [`docs/BITACORA.md`](docs/BITACORA.md): Bitácora viva de desarrollo con el registro cronológico de decisiones de ingeniería, hitos y benchmarks de hardware.
+

@@ -169,4 +169,54 @@ Este documento registra cronológicamente las decisiones de diseño, hitos de im
   * Compilación limpia con Clang C++20 y frameworks Metal/Accelerate (`make build`).
   * Validación unitaria integral en `test_pipeline.cpp` confirmando el funcionamiento coordinado de todos los módulos.
 
+---
+
+### [2026-09-04] — Entrada #008: Rediseño Cyber-HUD Futurista, Time Warp Multi-Escala, Citomorfología Celular, Modo Headless / Inspector IA y Exportador CSV
+* **Objetivo:** Elevar el software a grado cinematográfico y analítico profesional mediante: (1) Rediseño estético Cyber-HUD Sci-Fi / Biolab, (2) Controlador temporal de 8 órdenes de magnitud (*Time Warp*), (3) Renderizado citomorfológico multi-pixel en Canvas Braille, (4) Modo headless e inspector de estado atómico en JSON para agentes IA y CLI, y (5) Motor de exportación de datasets científicos a CSV.
+* **Componentes Construidos e Integrados:**
+  1. **Rediseño Estético Cyber-HUD Biolab (`src/ui/tui_app.cpp`):**
+     * Banner holográfico superior: `⌬ GENOMEFORGE-TUI :: CYBER-BIOLAB HUD v2.0`, insignias de arquitectura `⟦ ARCH: APPLE M4 | UMA ZERO-COPY ⟧` y badges de aceleradores `[AMX::vDSP ONLINE]`, `[GPU::METAL UMA]`.
+     * Selector de pestañas encapsulado en corchetes futuristas `⟨ 1: DASHBOARD ⟩` ... `⟨ 7: DIGITAL TWIN ⟩`.
+     * Paleta cromática Cyberpunk/Biolab: Cyan cuántico, esmeralda neón, amarillo ámbar, magenta/púrpura bio-marcador y rojo carmesí de alerta.
+  2. **Controlador Temporal Multi-Escala (*Time Warp*) (`include/digital_twin/cell_twin.hpp` / `src/digital_twin/cell_twin.cpp`):**
+     * Enum `TimeWarpScale` con 8 órdenes de magnitud:
+       * Segundos ($1\times$ - Tiempo Real)
+       * Minutos ($60\times$ - Señalización paracrina)
+       * Horas ($3.600\times$ - Ciclo celular $G_1/S/G_2/M$)
+       * Días ($86.400\times$ - Reprogramación OSKM)
+       * Semanas ($604.800\times$ - Expansión clonal de colonias)
+       * Meses ($2.592.000\times$ - Deriva genómica y selección)
+       * Años ($31.536.000\times$ - Senescencia acumulativa replicativa)
+       * Décadas ($315.360.000\times$ - Reloj epigenético e inestabilidad genómica)
+     * Reloj biológico en vivo con formateo de precisión: `T+ 000y:00m:04d:18h:32m:00s`.
+     * Atajos de teclado en vivo: `[` para frenar y `]` para acelerar la escala temporal.
+     * Escalado biofísico estable con factor `bio_speed_boost` para evitar explosiones combinatorias de mitosis en fotogramas aislados.
+  3. **Visualización Citomorfológica Avanzada en Canvas (`src/ui/tui_app.cpp`):**
+     * Superación del punto unilocular mediante morfología multi-subpíxel Braille ($114 \times 70$ píxeles):
+       * **Fibroblasto Somático (`SomaticFibroblast`):** Huso bipolar fusiforme alargado $(px \pm dx, py \pm dy)$ orientado según vector de velocidad $(v_x, v_y)$ con núcleo azul cian.
+       * **Intermedio MET (`IntermediateReprog`):** Transición mesénquima-epitelio con redondeamiento morfológico (3 píxeles amarillos).
+       * **Colonia iPSC Pluripotente (`PluripotentIPSC`):** Colonia epitelial compacta cobblestone con núcleo esmeralda y halo verde periférico.
+       * **Neoplasia Maligna (`TransformedMalignant`):** Pleomorfismo nuclear atípico e hipercromasia con núcleos sobredimensionados e irregulares (Rojo carmesí).
+       * **Cuerpo Apoptótico (`ApoptoticCorpse`):** Blebbing de membrana y condensación de cromatina dispersa en fragmentos celulares (Gris pizarra).
+       * **Mitosis y Surco de Clivaje (`cleavage_state`):** Constricción anafásica en reloj de arena (dumbbell) y doblete celular de telofase en magenta/blanco.
+     * Retícula óptica central y guías milimétricas de incubadora en la placa de Petri virtual.
+  4. **Modo Headless e Inspector de Estado para IA (`include/ipc/state_inspector.hpp` / `src/ipc/state_inspector.cpp`):**
+     * Serialización de telemetría en vivo a JSON (`data/live_state.json`) escrita atómicamente mediante buffer temporal (`.tmp`) y reemplazo atómico para evitar lecturas concurrentes corruptas.
+     * Flags CLI:
+       * `--headless`: Ejecución sin TUI orientada a pipelines automatizados, pruebas o scripts.
+       * `--ticks <N>`: Control del número de iteraciones en simulación acelerada.
+       * `--inspect [path]`: Lee e imprime un informe de diagnóstico estructurado en stdout para que el asistente de IA o CLI analice el estado del sistema en cualquier instante.
+     * Telemetría completa exportada: pestaña activa, métricas de hardware Darwin, dinámica Yamanaka, decisiones MoE, candidatos CRISPR y censo poblacional del gemelo digital.
+  5. **Motor de Exportación de Datasets Científicos a CSV (`include/export/csv_exporter.hpp` / `src/export/csv_exporter.cpp`):**
+     * Exportación bajo demanda mediante la tecla `[X]` o parámetro `--export-csv` en la carpeta `data/`:
+       * `export_cell_census_<timestamp>.csv`: Censo cronológico de poblaciones, confluencia, índice mitótico, eficiencia iPSC y R-Score.
+       * `export_cell_agents_<timestamp>.csv`: Registro detallado por célula individual ($ID$, progenitor, generación, fase, fenotipo, clivaje, coordenadas espaciales, cinemática, niveles $P/S$, $p53$, $R-Score$ y estado de transformación).
+       * `export_genomic_variants_<timestamp>.csv`: Catálogo de variantes del panel clínico con coordenadas, alelos, puntuación de patogenicidad, $AF$ y profundidad $DP$.
+* **Validación y Pruebas:**
+  * Compilación con Apple Clang C++20 exitosa (`make build`).
+  * Ejecución exitosa de simulación headless (`make headless`).
+  * Inspección en vivo verificada (`make inspect`).
+  * Verificación de consistencia y formato en todos los archivos CSV generados.
+
+
 

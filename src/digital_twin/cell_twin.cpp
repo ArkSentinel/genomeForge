@@ -61,10 +61,89 @@ void CellTwinSimulator::initialize_dish(size_t initial_count, bool patient_has_t
     }
 
     compute_population_metrics();
+    update_time_string();
 }
 
 void CellTwinSimulator::reset() {
     initialize_dish(180, true);
+}
+
+double CellTwinSimulator::get_time_multiplier() const {
+    switch (time_warp_) {
+        case TimeWarpScale::Seconds: return 1.0;
+        case TimeWarpScale::Minutes: return 60.0;
+        case TimeWarpScale::Hours:   return 3600.0;
+        case TimeWarpScale::Days:    return 86400.0;
+        case TimeWarpScale::Weeks:   return 604800.0;
+        case TimeWarpScale::Months:  return 2592000.0;
+        case TimeWarpScale::Years:   return 31536000.0;
+        case TimeWarpScale::Decades: return 315360000.0;
+    }
+    return 1.0;
+}
+
+std::string CellTwinSimulator::get_time_scale_label() const {
+    switch (time_warp_) {
+        case TimeWarpScale::Seconds: return "1.0 sec/step [REALTIME]";
+        case TimeWarpScale::Minutes: return "1.0 min/step [SIGNALING]";
+        case TimeWarpScale::Hours:   return "1.0 hr/step  [CELL CYCLE]";
+        case TimeWarpScale::Days:    return "1.0 day/step [OSKM REPROG]";
+        case TimeWarpScale::Weeks:   return "1.0 wk/step  [COLONY EXP]";
+        case TimeWarpScale::Months:  return "1.0 mo/step  [GENOMIC DRIFT]";
+        case TimeWarpScale::Years:   return "1.0 yr/step  [SENESCENCE]";
+        case TimeWarpScale::Decades: return "10 yr/step   [EPIGENETIC AGE]";
+    }
+    return "1.0 sec/step [REALTIME]";
+}
+
+void CellTwinSimulator::speed_up_time() {
+    uint8_t cur = static_cast<uint8_t>(time_warp_);
+    if (cur < 7) {
+        time_warp_ = static_cast<TimeWarpScale>(cur + 1);
+        metrics_.time_warp = time_warp_;
+        metrics_.time_multiplier = get_time_multiplier();
+    }
+}
+
+void CellTwinSimulator::slow_down_time() {
+    uint8_t cur = static_cast<uint8_t>(time_warp_);
+    if (cur > 0) {
+        time_warp_ = static_cast<TimeWarpScale>(cur - 1);
+        metrics_.time_warp = time_warp_;
+        metrics_.time_multiplier = get_time_multiplier();
+    }
+}
+
+void CellTwinSimulator::set_time_warp(TimeWarpScale scale) {
+    time_warp_ = scale;
+    metrics_.time_warp = time_warp_;
+    metrics_.time_multiplier = get_time_multiplier();
+}
+
+void CellTwinSimulator::update_time_string() {
+    uint64_t total_sec = static_cast<uint64_t>(simulated_seconds_);
+    uint64_t years = total_sec / 31536000ULL;
+    uint64_t rem_y = total_sec % 31536000ULL;
+
+    uint64_t months = rem_y / 2592000ULL;
+    uint64_t rem_m = rem_y % 2592000ULL;
+
+    uint64_t days = rem_m / 86400ULL;
+    uint64_t rem_d = rem_m % 86400ULL;
+
+    uint64_t hours = rem_d / 3600ULL;
+    uint64_t rem_h = rem_d % 3600ULL;
+
+    uint64_t minutes = rem_h / 60ULL;
+    uint64_t seconds = rem_h % 60ULL;
+
+    char buf[64];
+    std::snprintf(buf, sizeof(buf), "T+ %03lluy:%02llum:%02llud:%02lluh:%02llum:%02llus",
+                  years, months, days, hours, minutes, seconds);
+    metrics_.simulated_time_str = std::string(buf);
+    metrics_.simulated_seconds = simulated_seconds_;
+    metrics_.time_multiplier = get_time_multiplier();
+    metrics_.time_warp = time_warp_;
 }
 
 void CellTwinSimulator::toggle_doxycycline() {
@@ -261,10 +340,12 @@ void CellTwinSimulator::update_cell_cycle(CellAgent& cell, float dt, std::vector
                 break;
             case CellCyclePhase::G2_PreMitotic:
                 cell.phase = CellCyclePhase::M_Mitosis;
+                cell.cleavage_state = 0;
                 break;
             case CellCyclePhase::M_Mitosis: {
                 // Evento de Mitosis: División celular
                 cell.phase = CellCyclePhase::G1_Growth;
+                cell.cleavage_state = 0;
                 cell.generation++;
 
                 // Solo divide si la placa no está saturada (>1500 células)
@@ -273,6 +354,7 @@ void CellTwinSimulator::update_cell_cycle(CellAgent& cell, float dt, std::vector
                     daughter.cell_id = next_cell_id_++;
                     daughter.parent_id = cell.cell_id;
                     daughter.cycle_clock = 0.05f;
+                    daughter.cleavage_state = 0;
 
                     // Pequeña dispersión espacial
                     float angle = (cell.cell_id % 360) * (M_PI / 180.0f);
@@ -288,26 +370,55 @@ void CellTwinSimulator::update_cell_cycle(CellAgent& cell, float dt, std::vector
             }
             default:
                 cell.phase = CellCyclePhase::G1_Growth;
+                cell.cleavage_state = 0;
                 break;
         }
+    } else if (cell.phase == CellCyclePhase::M_Mitosis) {
+        // Marcador citomorfológico de constricción y surco de escisión
+        if (cell.cycle_clock < 0.45f) {
+            cell.cleavage_state = 0; // Metafase
+        } else if (cell.cycle_clock < 0.80f) {
+            cell.cleavage_state = 1; // Anafase / Surco
+        } else {
+            cell.cleavage_state = 2; // Telofase / Mancuerna
+        }
+    } else {
+        cell.cleavage_state = 0;
     }
 }
 
-void CellTwinSimulator::step(float dt) {
+void CellTwinSimulator::step(float base_dt) {
+    double mult = get_time_multiplier();
+    simulated_seconds_ += base_dt * mult;
+    update_time_string();
+
     if (uv_insult_active_) {
-        uv_timer_ -= dt;
+        uv_timer_ -= base_dt;
         if (uv_timer_ <= 0.0f) {
             uv_insult_active_ = false;
         }
     }
 
-    // 1. Biofísica intercelular
-    update_physics_cpu(dt);
+    // 1. Biofísica intercelular (física suave a escala visual)
+    update_physics_cpu(base_dt);
 
-    // 2. Ciclo celular y proliferación
+    // 2. Ciclo celular y proliferación (acelerado dinámicamente según time_warp_)
+    float bio_speed_boost = 1.0f;
+    switch (time_warp_) {
+        case TimeWarpScale::Seconds: bio_speed_boost = 1.0f; break;
+        case TimeWarpScale::Minutes: bio_speed_boost = 1.6f; break;
+        case TimeWarpScale::Hours:   bio_speed_boost = 2.8f; break;
+        case TimeWarpScale::Days:    bio_speed_boost = 4.5f; break;
+        case TimeWarpScale::Weeks:   bio_speed_boost = 6.5f; break;
+        case TimeWarpScale::Months:  bio_speed_boost = 9.0f; break;
+        case TimeWarpScale::Years:   bio_speed_boost = 12.0f; break;
+        case TimeWarpScale::Decades: bio_speed_boost = 16.0f; break;
+    }
+    float effective_dt = base_dt * bio_speed_boost;
+
     std::vector<CellAgent> new_daughters;
     for (auto& cell : cells_) {
-        update_cell_cycle(cell, dt, new_daughters);
+        update_cell_cycle(cell, effective_dt, new_daughters);
     }
 
     if (!new_daughters.empty()) {

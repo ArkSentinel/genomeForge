@@ -271,3 +271,52 @@ El sistema soporta la ingesta y benchmarking frente a conjuntos de variantes aut
   * `-framework Metal` (cómputo GPU y memoria unificada Zero-Copy UMA).
   * `-framework Foundation` (servicios del sistema).
 * **Dependencia TUI:** FTXUI integrada de forma autónoma (`external/ftxui`).
+
+---
+
+## 7. Controlador Temporal Multi-Escala (*Time Warp*) y Citomorfología Celular
+
+### Escalas Temporales Biológicas
+El controlador temporal permite ajustar la velocidad de la simulación biológica a través de 8 órdenes de magnitud discretos mediante las teclas `[` (frenar) y `]` (acelerar):
+
+| Escala (`TimeWarpScale`) | Multiplicador | Dominio Biológico Modelado |
+| :--- | :---: | :--- |
+| **Seconds** | $1\times$ | Tiempo real, difusión molecular y biofísica intercelular instantánea. |
+| **Minutes** | $60\times$ | Señalización paracrina, fosforilación y cascadas quinasas. |
+| **Hours** | $3.600\times$ | Transición de fases del ciclo celular ($G_1 \to S \to G_2 \to M$). |
+| **Days** | $86.400\times$ | Cinética de reprogramación de Yamanaka (inducción OSKM). |
+| **Weeks** | $604.800\times$ | Formación y expansión clonal de colonias iPSC / tumorigénesis. |
+| **Months** | $2.592.000\times$ | Deriva genómica, selección clonal y acumulación de aneuploidías. |
+| **Years** | $31.536.000\times$ | Senescencia replicativa acumulada y agotamiento de telómeros. |
+| **Decades** | $315.360.000\times$ | Reloj epigenético de Horvath y carcinogénesis a largo plazo. |
+
+### Visualización Citomorfológica de Alta Fidelidad
+En lugar de puntos genéricos uniloculares, el renderizado sobre el `Canvas` de FTXUI dibuja la geometría fenotípica celular específica de cada agente:
+* **Huso Fibroblástico Bipolar:** Polos axonales alargados orientados según vector cinemático $(v_x, v_y)$ con núcleo oval central cian.
+* **Redondeamiento MET:** Células en transición mesénquima-epitelio perdiendo proyecciones citoplasmáticas (trío de sub-píxeles amarillos).
+* **Colonia Cobblestone iPSC:** Agrupación densa con contornos poligonales netos y núcleos prominentes de alta relación núcleo-citoplasma (Esmeralda neón).
+* **Pleomorfismo Maligno:** Células hipercromáticas con anisocariosis severa y núcleos gigantes atípicos (Rojo carmesí).
+* **Blebbing Apoptótico:** Condensación nuclear (picnosis) y cuerpos apoptóticos fragmentados dispersos (Gris pizarra).
+* **Surco de Clivaje y Citocinesis:** Constricción en reloj de arena durante anafase tarda y dobletes en telofase previa a la separación mecánica (Magenta/Blanco).
+
+---
+
+## 8. Interfaz Headless, Telemetría Atómica e Interoperabilidad con Agentes IA
+
+### Modo Headless y Scripting
+El binario soporta ejecución no interactiva para pipelines de integración continua, benchmarks y auditorías automatizadas:
+* `./genome_forge --headless --ticks <N> --snapshot <path> --export-csv`
+
+### Inspector de Estado en Vivo (IPC / Asistentes IA)
+GenomeForge-TUI emite telemetría atómica estructurada en `data/live_state.json` (escritura en `.tmp` y reemplazo atómico para evitar condiciones de carrera). El comando `./genome_forge --inspect [path]` o la lectura directa del JSON permite a los asistentes de inteligencia artificial monitorear en tiempo real:
+* Coordenadas genómicas activas y clasificaciones de patogenicidad.
+* Concentraciones de factores OSKM y variables de estado del solver ODE ($P, S, I, p_{53}, p_{21}, R\text{-Score}$).
+* Tiempos de latencia y volumen de inferencias procesadas por Accelerate (vDSP) y Metal GPU.
+* Recuento celular granular por fenotipo y confluencia de la placa de Petri.
+
+### Exportación Científica a CSV
+El módulo `CsvExporter` genera datasets estructurados en `data/` bajo demanda (`[X]` en la TUI o `--export-csv` en CLI):
+1. `export_cell_census_<ts>.csv`: Evolución temporal de poblaciones y métricas de reprogramación.
+2. `export_cell_agents_<ts>.csv`: Ficha unicelular exhaustiva de los agentes vivos (linaje, fase, fenotipo, cinemática, morfología).
+3. `export_genomic_variants_<ts>.csv`: Catálogo de variantes del paciente o cohorte con anotaciones clínicas.
+
