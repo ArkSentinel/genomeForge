@@ -39,6 +39,20 @@ public:
     // Exporta datasets en formato CSV
     void export_datasets();
 
+    // Control de velocidad de simulación en tiempo real (1x a 32x)
+    void increase_sim_speed();
+    void decrease_sim_speed();
+    size_t get_sim_speed_multiplier() const { return sim_speed_multiplier_; }
+
+    // Control de zoom y pan óptico de la placa de Petri
+    void zoom_in_petri();
+    void zoom_out_petri();
+    void reset_petri_view();
+    void pan_petri(float dx, float dy);
+    float get_petri_zoom() const { return petri_zoom_; }
+    float get_petri_pan_x() const { return petri_pan_x_; }
+    float get_petri_pan_y() const { return petri_pan_y_; }
+
 private:
     void init_simulation_state();
     void add_log(const std::string& level, const std::string& message);
@@ -48,6 +62,10 @@ private:
     void save_live_state();
 
     size_t tick_counter_{0};
+    size_t sim_speed_multiplier_{1};
+    float petri_zoom_{1.0f};
+    float petri_pan_x_{0.0f};
+    float petri_pan_y_{0.0f};
     std::string vcf_path_;
     genome::vcf::VcfParser vcf_parser_;
     genome::system::TelemetryCollector telemetry_;

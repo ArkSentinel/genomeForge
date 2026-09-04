@@ -157,6 +157,61 @@ void GenomeForgeApp::init_simulation_state() {
     add_log("INFO", "Living Cell Digital Twin initialized: 180 cell agents in virtual Petri dish with Metal UMA physics.");
 }
 
+void GenomeForgeApp::increase_sim_speed() {
+    if (sim_speed_multiplier_ < 32) {
+        sim_speed_multiplier_ *= 2;
+        add_log("ENGINE", "Simulation real-time speed accelerated to: " + 
+                          std::to_string(sim_speed_multiplier_) + "x");
+    }
+}
+
+void GenomeForgeApp::decrease_sim_speed() {
+    if (sim_speed_multiplier_ > 1) {
+        sim_speed_multiplier_ /= 2;
+        add_log("ENGINE", "Simulation real-time speed decreased to: " + 
+                          std::to_string(sim_speed_multiplier_) + "x");
+    }
+}
+
+void GenomeForgeApp::zoom_in_petri() {
+    if (petri_zoom_ < 8.0f) {
+        if (petri_zoom_ < 1.9f) petri_zoom_ += 0.5f;
+        else if (petri_zoom_ < 3.9f) petri_zoom_ += 1.0f;
+        else petri_zoom_ += 2.0f;
+        add_log("OPTICS", "Petri dish microscope lens zoomed to: " + 
+                          std::to_string(petri_zoom_).substr(0, 3) + "x");
+    }
+}
+
+void GenomeForgeApp::zoom_out_petri() {
+    if (petri_zoom_ > 1.0f) {
+        if (petri_zoom_ > 4.0f) petri_zoom_ -= 2.0f;
+        else if (petri_zoom_ > 2.0f) petri_zoom_ -= 1.0f;
+        else petri_zoom_ = 1.0f;
+
+        if (petri_zoom_ <= 1.0f) {
+            petri_pan_x_ = 0.0f;
+            petri_pan_y_ = 0.0f;
+        }
+        add_log("OPTICS", "Petri dish microscope lens zoomed to: " + 
+                          std::to_string(petri_zoom_).substr(0, 3) + "x");
+    }
+}
+
+void GenomeForgeApp::reset_petri_view() {
+    petri_zoom_ = 1.0f;
+    petri_pan_x_ = 0.0f;
+    petri_pan_y_ = 0.0f;
+    add_log("OPTICS", "Petri dish microscope view reset to 1.0x wide-field overview.");
+}
+
+void GenomeForgeApp::pan_petri(float dx, float dy) {
+    float max_pan = 40.0f * (1.0f - 1.0f / petri_zoom_);
+    if (max_pan < 0.0f) max_pan = 0.0f;
+    petri_pan_x_ = std::clamp(petri_pan_x_ + dx, -max_pan, max_pan);
+    petri_pan_y_ = std::clamp(petri_pan_y_ + dy, -max_pan, max_pan);
+}
+
 void GenomeForgeApp::save_live_state() {
     genome::ipc::StateInspector::dump_live_state_json(
         "data/live_state.json",
@@ -168,7 +223,11 @@ void GenomeForgeApp::save_live_state() {
         moe_engine_,
         crispr_candidates_,
         crispr_applied_,
-        cell_twin_
+        cell_twin_,
+        sim_speed_multiplier_,
+        petri_zoom_,
+        petri_pan_x_,
+        petri_pan_y_
     );
 }
 
@@ -203,7 +262,11 @@ int GenomeForgeApp::run_headless(size_t max_ticks, bool export_csv, const std::s
         moe_engine_,
         crispr_candidates_,
         crispr_applied_,
-        cell_twin_
+        cell_twin_,
+        sim_speed_multiplier_,
+        petri_zoom_,
+        petri_pan_x_,
+        petri_pan_y_
     );
 
     std::cout << "[+] Telemetry snapshot saved to: " << snapshot_path << "\n";
@@ -245,8 +308,9 @@ void GenomeForgeApp::tick_simulation() {
         cell_twin_.step(0.05f);
     }
 
-    // Volcado de estado cada 2 ticks para que el asistente IA o CLI pueda inspeccionar
-    if (tick_counter_ % 2 == 0) {
+    // Volcado de estado periódico para inspección IA y CLI (ajustado a la velocidad del motor)
+    size_t save_interval = std::max<size_t>(2, 2 * sim_speed_multiplier_);
+    if (tick_counter_ % save_interval == 0) {
         save_live_state();
     }
 }
@@ -820,36 +884,77 @@ int GenomeForgeApp::run() {
             int c_height = 70;
             Canvas petri_canvas(c_width, c_height);
 
-            // Borde exterior, bisel e interior de la placa de Petri (Cyber Incubator style)
-            petri_canvas.DrawPointEllipse(c_width / 2, c_height / 2, (c_width / 2) - 3, (c_height / 2) - 2, Color::Cyan);
-            petri_canvas.DrawPointEllipse(c_width / 2, c_height / 2, (c_width / 2) - 5, (c_height / 2) - 4, Color::GrayDark);
+            // Factores de escala con Zoom óptico del microscopio virtual
+            float scale_x = (((c_width / 2.0f) - 6.0f) / 45.0f) * petri_zoom_;
+            float scale_y = (((c_height / 2.0f) - 5.0f) / 45.0f) * petri_zoom_;
+
+            // Borde exterior, bisel e interior de la placa de Petri proyectada con Pan y Zoom
+            int dish_cx = static_cast<int>((c_width / 2.0f) - petri_pan_x_ * scale_x);
+            int dish_cy = static_cast<int>((c_height / 2.0f) - petri_pan_y_ * scale_y);
+            int dish_rx = static_cast<int>(45.0f * scale_x);
+            int dish_ry = static_cast<int>(45.0f * scale_y);
+
+            if (dish_rx > 2 && dish_ry > 2) {
+                petri_canvas.DrawPointEllipse(dish_cx, dish_cy, dish_rx, dish_ry, Color::Cyan);
+                if (dish_rx > 4 && dish_ry > 4) {
+                    petri_canvas.DrawPointEllipse(dish_cx, dish_cy, dish_rx - 2, dish_ry - 2, Color::GrayDark);
+                }
+            }
             
-            // Retícula óptica central y guías milimétricas del microscopio
+            // Retícula óptica central y guías micrométricas del ocular del microscopio
             int cx = c_width / 2;
             int cy = c_height / 2;
-            petri_canvas.DrawPointLine(cx - 3, cy, cx + 3, cy, Color::GrayDark);
-            petri_canvas.DrawPointLine(cx, cy - 2, cx, cy + 2, Color::GrayDark);
+            petri_canvas.DrawPointLine(cx - 4, cy, cx + 4, cy, Color::GrayDark);
+            petri_canvas.DrawPointLine(cx, cy - 3, cx, cy + 3, Color::GrayDark);
+            if (petri_zoom_ > 1.05f) {
+                // Ticks micrométricos de alta magnificación
+                petri_canvas.DrawPoint(cx - 12, cy, true, Color::Cyan);
+                petri_canvas.DrawPoint(cx + 12, cy, true, Color::Cyan);
+                petri_canvas.DrawPoint(cx, cy - 8, true, Color::Cyan);
+                petri_canvas.DrawPoint(cx, cy + 8, true, Color::Cyan);
+            }
 
-            // Renderizado citomorfológico avanzado de cada célula según su fenotipo y estado de división
+            // Renderizado citomorfológico avanzado de cada célula según su fenotipo, zoom y división
+            bool high_mag = (petri_zoom_ >= 2.0f);
+
             for (const auto& cell : cells) {
-                int px = static_cast<int>((c_width / 2.0f) + (cell.x / 45.0f) * ((c_width / 2.0f) - 6));
-                int py = static_cast<int>((c_height / 2.0f) + (cell.y / 45.0f) * ((c_height / 2.0f) - 5));
+                int px = static_cast<int>((c_width / 2.0f) + (cell.x - petri_pan_x_) * scale_x);
+                int py = static_cast<int>((c_height / 2.0f) + (cell.y - petri_pan_y_) * scale_y);
 
-                if (px < 3 || px >= c_width - 3 || py < 3 || py >= c_height - 3) continue;
+                if (px < 2 || px >= c_width - 2 || py < 2 || py >= c_height - 2) continue;
 
                 // 1. Células en mitosis activa con surco de clivaje / citocinesis
                 if (cell.cleavage_state > 0) {
-                    if (cell.cleavage_state == 1) {
-                        // Anafase tardía: constricción y reloj de arena (dumbbell)
-                        petri_canvas.DrawPoint(px - 1, py, true, Color::MagentaLight);
-                        petri_canvas.DrawPoint(px + 1, py, true, Color::MagentaLight);
-                        petri_canvas.DrawPoint(px, py, true, Color::White);
+                    if (high_mag) {
+                        // Alta magnificación: huso acromático y cromátidas segregadas
+                        if (cell.cleavage_state == 1) {
+                            petri_canvas.DrawPoint(px - 2, py, true, Color::MagentaLight);
+                            petri_canvas.DrawPoint(px - 1, py, true, Color::Magenta);
+                            petri_canvas.DrawPoint(px, py, true, Color::White);
+                            petri_canvas.DrawPoint(px + 1, py, true, Color::Magenta);
+                            petri_canvas.DrawPoint(px + 2, py, true, Color::MagentaLight);
+                            petri_canvas.DrawPoint(px - 1, py - 1, true, Color::MagentaLight);
+                            petri_canvas.DrawPoint(px + 1, py + 1, true, Color::MagentaLight);
+                        } else {
+                            petri_canvas.DrawPoint(px - 3, py, true, Color::MagentaLight);
+                            petri_canvas.DrawPoint(px - 2, py, true, Color::MagentaLight);
+                            petri_canvas.DrawPoint(px - 2, py - 1, true, Color::Magenta);
+                            petri_canvas.DrawPoint(px, py, true, Color::White);
+                            petri_canvas.DrawPoint(px + 2, py, true, Color::MagentaLight);
+                            petri_canvas.DrawPoint(px + 3, py, true, Color::MagentaLight);
+                            petri_canvas.DrawPoint(px + 2, py + 1, true, Color::Magenta);
+                        }
                     } else {
-                        // Telofase / doblete celular listo para separación
-                        petri_canvas.DrawPoint(px - 2, py, true, Color::MagentaLight);
-                        petri_canvas.DrawPoint(px - 1, py, true, Color::MagentaLight);
-                        petri_canvas.DrawPoint(px + 1, py, true, Color::MagentaLight);
-                        petri_canvas.DrawPoint(px + 2, py, true, Color::MagentaLight);
+                        if (cell.cleavage_state == 1) {
+                            petri_canvas.DrawPoint(px - 1, py, true, Color::MagentaLight);
+                            petri_canvas.DrawPoint(px + 1, py, true, Color::MagentaLight);
+                            petri_canvas.DrawPoint(px, py, true, Color::White);
+                        } else {
+                            petri_canvas.DrawPoint(px - 2, py, true, Color::MagentaLight);
+                            petri_canvas.DrawPoint(px - 1, py, true, Color::MagentaLight);
+                            petri_canvas.DrawPoint(px + 1, py, true, Color::MagentaLight);
+                            petri_canvas.DrawPoint(px + 2, py, true, Color::MagentaLight);
+                        }
                     }
                     continue;
                 }
@@ -857,66 +962,116 @@ int GenomeForgeApp::run() {
                 // 2. Morfología según fenotipo celular
                 switch (cell.phenotype) {
                     case genome::twin::CellPhenotype::SomaticFibroblast: {
-                        // Fibroblasto: morfología fusiforme alargada (spindle) orientada
                         float v_len = std::hypot(cell.vx, cell.vy);
                         int dx = 1, dy = 0;
                         if (v_len > 0.1f) {
                             dx = static_cast<int>(std::round((cell.vx / v_len) * 1.5f));
                             dy = static_cast<int>(std::round((cell.vy / v_len) * 1.2f));
                         } else {
-                            // Orientación pseudo-aleatoria persistente basada en cell_id
                             int angle_idx = (cell.cell_id % 4);
                             if (angle_idx == 0) { dx = 1; dy = 0; }
                             else if (angle_idx == 1) { dx = 1; dy = 1; }
                             else if (angle_idx == 2) { dx = 0; dy = 1; }
                             else { dx = -1; dy = 1; }
                         }
-                        // Núcleo central azul cian
-                        petri_canvas.DrawPoint(px, py, true, Color::Cyan);
-                        // Polos polares del huso
-                        petri_canvas.DrawPoint(px + dx, py + dy, true, Color::BlueLight);
-                        petri_canvas.DrawPoint(px - dx, py - dy, true, Color::BlueLight);
+                        if (high_mag) {
+                            // Fibroblasto en alta magnificación: cuerpo citoplasmático y lamelipodios
+                            petri_canvas.DrawPoint(px, py, true, Color::Cyan);
+                            petri_canvas.DrawPoint(px, py - 1, true, Color::BlueLight);
+                            petri_canvas.DrawPoint(px + dx, py + dy, true, Color::BlueLight);
+                            petri_canvas.DrawPoint(px - dx, py - dy, true, Color::BlueLight);
+                            petri_canvas.DrawPoint(px + 2 * dx, py + 2 * dy, true, Color::Blue);
+                            petri_canvas.DrawPoint(px - 2 * dx, py - 2 * dy, true, Color::Blue);
+                        } else {
+                            petri_canvas.DrawPoint(px, py, true, Color::Cyan);
+                            petri_canvas.DrawPoint(px + dx, py + dy, true, Color::BlueLight);
+                            petri_canvas.DrawPoint(px - dx, py - dy, true, Color::BlueLight);
+                        }
                         break;
                     }
 
                     case genome::twin::CellPhenotype::IntermediateReprog: {
-                        // MET Intermedio: célula en redondeamiento de transición mesénquima-epitelio
-                        petri_canvas.DrawPoint(px, py, true, Color::YellowLight);
-                        petri_canvas.DrawPoint(px + 1, py, true, Color::Yellow);
-                        petri_canvas.DrawPoint(px, py + 1, true, Color::Yellow);
+                        if (high_mag) {
+                            // MET Intermedio ampliado: condensación cromatínica periférica
+                            petri_canvas.DrawPoint(px, py, true, Color::YellowLight);
+                            petri_canvas.DrawPoint(px + 1, py, true, Color::Yellow);
+                            petri_canvas.DrawPoint(px - 1, py, true, Color::Yellow);
+                            petri_canvas.DrawPoint(px, py + 1, true, Color::Yellow);
+                            petri_canvas.DrawPoint(px, py - 1, true, Color::Yellow);
+                        } else {
+                            petri_canvas.DrawPoint(px, py, true, Color::YellowLight);
+                            petri_canvas.DrawPoint(px + 1, py, true, Color::Yellow);
+                            petri_canvas.DrawPoint(px, py + 1, true, Color::Yellow);
+                        }
                         break;
                     }
 
                     case genome::twin::CellPhenotype::PluripotentIPSC: {
-                        // Colonia iPSC: colonia epitelial compacta, borde nítido, núcleo prominente esmeralda
-                        petri_canvas.DrawPoint(px, py, true, Color::GreenLight);
-                        petri_canvas.DrawPoint(px + 1, py, true, Color::Green);
-                        petri_canvas.DrawPoint(px - 1, py, true, Color::Green);
-                        petri_canvas.DrawPoint(px, py + 1, true, Color::Green);
-                        petri_canvas.DrawPoint(px, py - 1, true, Color::Green);
+                        if (high_mag) {
+                            // Colonia iPSC ampliada: núcleo con nucleolo prominente y borde epitelial
+                            petri_canvas.DrawPoint(px, py, true, Color::White);
+                            petri_canvas.DrawPoint(px + 1, py, true, Color::GreenLight);
+                            petri_canvas.DrawPoint(px - 1, py, true, Color::GreenLight);
+                            petri_canvas.DrawPoint(px, py + 1, true, Color::GreenLight);
+                            petri_canvas.DrawPoint(px, py - 1, true, Color::GreenLight);
+                            petri_canvas.DrawPoint(px + 1, py + 1, true, Color::Green);
+                            petri_canvas.DrawPoint(px - 1, py - 1, true, Color::Green);
+                            petri_canvas.DrawPoint(px + 1, py - 1, true, Color::Green);
+                            petri_canvas.DrawPoint(px - 1, py + 1, true, Color::Green);
+                        } else {
+                            petri_canvas.DrawPoint(px, py, true, Color::GreenLight);
+                            petri_canvas.DrawPoint(px + 1, py, true, Color::Green);
+                            petri_canvas.DrawPoint(px - 1, py, true, Color::Green);
+                            petri_canvas.DrawPoint(px, py + 1, true, Color::Green);
+                            petri_canvas.DrawPoint(px, py - 1, true, Color::Green);
+                        }
                         break;
                     }
 
                     case genome::twin::CellPhenotype::TransformedMalignant: {
-                        // Neoplasia Maligna: pleomorfismo nuclear severo, hipercromasia, atipia celular
-                        petri_canvas.DrawPoint(px, py, true, Color::RedLight);
-                        petri_canvas.DrawPoint(px + 1, py, true, Color::Red);
-                        petri_canvas.DrawPoint(px - 1, py, true, Color::Red);
-                        petri_canvas.DrawPoint(px, py + 1, true, Color::Red);
-                        petri_canvas.DrawPoint(px + 1, py + 1, true, Color::RedLight);
-                        petri_canvas.DrawPoint(px - 1, py - 1, true, Color::Red);
+                        if (high_mag) {
+                            // Neoplasia Maligna ampliada: núcleo gigante bizarro, multinucleación
+                            petri_canvas.DrawPoint(px, py, true, Color::White);
+                            petri_canvas.DrawPoint(px + 1, py, true, Color::RedLight);
+                            petri_canvas.DrawPoint(px - 1, py, true, Color::RedLight);
+                            petri_canvas.DrawPoint(px, py + 1, true, Color::RedLight);
+                            petri_canvas.DrawPoint(px, py - 1, true, Color::RedLight);
+                            petri_canvas.DrawPoint(px + 2, py, true, Color::Red);
+                            petri_canvas.DrawPoint(px - 2, py, true, Color::Red);
+                            petri_canvas.DrawPoint(px + 1, py + 1, true, Color::MagentaLight);
+                            petri_canvas.DrawPoint(px - 1, py - 1, true, Color::MagentaLight);
+                        } else {
+                            petri_canvas.DrawPoint(px, py, true, Color::RedLight);
+                            petri_canvas.DrawPoint(px + 1, py, true, Color::Red);
+                            petri_canvas.DrawPoint(px - 1, py, true, Color::Red);
+                            petri_canvas.DrawPoint(px, py + 1, true, Color::Red);
+                            petri_canvas.DrawPoint(px + 1, py + 1, true, Color::RedLight);
+                            petri_canvas.DrawPoint(px - 1, py - 1, true, Color::Red);
+                        }
                         break;
                     }
 
                     case genome::twin::CellPhenotype::ApoptoticCorpse: {
-                        // Cuerpo apoptótico: blebbing celular y fragmentación en cuerpos apoptóticos (debris)
-                        petri_canvas.DrawPoint(px, py, true, Color::GrayLight);
-                        petri_canvas.DrawPoint(px + 1, py - 1, true, Color::GrayDark);
-                        petri_canvas.DrawPoint(px - 1, py + 1, true, Color::GrayDark);
+                        if (high_mag) {
+                            // Apoptosis ampliada: dispersión de múltiples cuerpos apoptóticos
+                            petri_canvas.DrawPoint(px, py, true, Color::GrayLight);
+                            petri_canvas.DrawPoint(px + 2, py - 1, true, Color::GrayDark);
+                            petri_canvas.DrawPoint(px - 2, py + 1, true, Color::GrayDark);
+                            petri_canvas.DrawPoint(px + 1, py + 2, true, Color::GrayDark);
+                            petri_canvas.DrawPoint(px - 1, py - 2, true, Color::GrayDark);
+                        } else {
+                            petri_canvas.DrawPoint(px, py, true, Color::GrayLight);
+                            petri_canvas.DrawPoint(px + 1, py - 1, true, Color::GrayDark);
+                            petri_canvas.DrawPoint(px - 1, py + 1, true, Color::GrayDark);
+                        }
                         break;
                     }
                 }
             }
+
+            std::string zoom_str = std::to_string(static_cast<int>(petri_zoom_)) + "." + 
+                                   std::to_string(static_cast<int>(petri_zoom_ * 10) % 10) + "x";
+            std::string speed_str = std::to_string(sim_speed_multiplier_) + "x";
 
             auto petri_box = vbox({
                 hbox({
@@ -928,6 +1083,8 @@ int GenomeForgeApp::run() {
                     text("RELOJ: ") | color(Color::GrayLight),
                     text(cell_twin_.get_simulated_time_string()) | bold | color(Color::GreenLight),
                     filler(),
+                    text("⟦ ÓPTICA: " + zoom_str + " | VEL: " + speed_str + " ⟧") | bold | color(Color::MagentaLight),
+                    text(" "),
                     text(t_metrics.dox_active ? "⟦ OSKM: INDUCIDO ⟧" : "⟦ OSKM: BASAL ⟧") | bold | 
                          (t_metrics.dox_active ? color(Color::Yellow) : color(Color::GrayDark)),
                     text(" "),
@@ -984,6 +1141,26 @@ int GenomeForgeApp::run() {
                     text("[ ] ] ") | bold | color(Color::YellowLight), text("Acelerar") | color(Color::White),
                 }),
                 separator(),
+                text("◈ CINÉTICA REAL & MICROSCOPIO") | bold | color(Color::MagentaLight),
+                separator(),
+                hbox({ text("Velocidad Motor: ") | color(Color::GrayLight), text(std::to_string(sim_speed_multiplier_) + "x (" + std::to_string(sim_speed_multiplier_ * 20) + " Hz)") | bold | color(Color::MagentaLight) }),
+                hbox({ text("Zoom Óptico: ") | color(Color::GrayLight), text(zoom_str) | bold | color(Color::Cyan), text("  Pan: ") | color(Color::GrayLight), text("(" + std::to_string(static_cast<int>(petri_pan_x_)) + "," + std::to_string(static_cast<int>(petri_pan_y_)) + ")") | color(Color::White) }),
+                hbox({
+                    text("Velocidad: ") | color(Color::GrayLight),
+                    text("[ < ] ") | bold | color(Color::MagentaLight), text("Bajar  ") | color(Color::White),
+                    text("[ > ] ") | bold | color(Color::MagentaLight), text("Subir") | color(Color::White),
+                }),
+                hbox({
+                    text("Zoom Petri: ") | color(Color::GrayLight),
+                    text("[Z] ") | bold | color(Color::Cyan), text("Acercar  ") | color(Color::White),
+                    text("[z] ") | bold | color(Color::Cyan), text("Alejar  ") | color(Color::White),
+                    text("[0] ") | bold | color(Color::Cyan), text("Reset") | color(Color::White),
+                }),
+                hbox({
+                    text("Navegación: ") | color(Color::GrayLight),
+                    text("[Flechas / W,A,S] ") | bold | color(Color::YellowLight), text("Pan Óptico") | color(Color::White),
+                }),
+                separator(),
                 text("◈ DINÁMICA DE REPROGRAMACIÓN Y RIESGO") | bold | color(Color::Cyan),
                 separator(),
                 hbox({
@@ -1033,9 +1210,10 @@ int GenomeForgeApp::run() {
             text(" ⟦ ATAJOS ⟧ ") | bold | color(Color::Cyan),
             text("[1..7] ") | bold | color(Color::White), text("Pestañas  ") | color(Color::GrayLight),
             text("[Tab] ") | bold | color(Color::White), text("Ciclar  ") | color(Color::GrayLight),
+            text("[ < / > ] ") | bold | color(Color::MagentaLight), text("Vel Real  ") | color(Color::GrayLight),
+            text("[Z / z / 0] ") | bold | color(Color::Cyan), text("Zoom Petri  ") | color(Color::GrayLight),
             text("[ [ / ] ] ") | bold | color(Color::YellowLight), text("Time Warp  ") | color(Color::GrayLight),
-            text("[X] ") | bold | color(Color::GreenLight), text("Exportar CSV  ") | color(Color::GrayLight),
-            text("[L] ") | bold | color(Color::Yellow), text("Locus  ") | color(Color::GrayLight),
+            text("[X] ") | bold | color(Color::GreenLight), text("CSV  ") | color(Color::GrayLight),
             text("[D] ") | bold | color(Color::Yellow), text("OSKM  ") | color(Color::GrayLight),
             text("[C] ") | bold | color(Color::Cyan), text("CRISPR  ") | color(Color::GrayLight),
             text("[U] ") | bold | color(Color::RedLight), text("UV  ") | color(Color::GrayLight),
@@ -1075,6 +1253,54 @@ int GenomeForgeApp::run() {
         if (event == Event::Character('l') || event == Event::Character('L')) {
             cycle_locus();
             return true;
+        }
+
+        // Control de velocidad en tiempo real (1x..32x)
+        if (event == Event::Character('<') || event == Event::Character(',')) {
+            decrease_sim_speed();
+            return true;
+        }
+
+        if (event == Event::Character('>') || event == Event::Character('.')) {
+            increase_sim_speed();
+            return true;
+        }
+
+        // Controles de zoom óptico del microscopio
+        if (event == Event::Character('Z')) {
+            zoom_in_petri();
+            return true;
+        }
+
+        if (event == Event::Character('z')) {
+            zoom_out_petri();
+            return true;
+        }
+
+        if (event == Event::Character('0')) {
+            reset_petri_view();
+            return true;
+        }
+
+        // Navegación Pan en la placa de Petri (Tab 7)
+        if (current_tab_ == AppTab::DigitalTwin) {
+            float pan_step = 4.0f / petri_zoom_;
+            if (event == Event::Character('w') || event == Event::Character('W') || event == Event::ArrowUp) {
+                pan_petri(0.0f, -pan_step);
+                return true;
+            }
+            if (event == Event::Character('s') || event == Event::Character('S') || event == Event::ArrowDown) {
+                pan_petri(0.0f, pan_step);
+                return true;
+            }
+            if (event == Event::Character('a') || event == Event::Character('A') || event == Event::ArrowLeft) {
+                pan_petri(-pan_step, 0.0f);
+                return true;
+            }
+            if (event == Event::ArrowRight) {
+                pan_petri(pan_step, 0.0f);
+                return true;
+            }
         }
 
         // Acciones del Gemelo Digital
@@ -1214,9 +1440,11 @@ int GenomeForgeApp::run() {
     Loop loop(&screen, event_handler);
 
     while (!loop.HasQuitted()) {
-        tick_simulation();
+        for (size_t s = 0; s < sim_speed_multiplier_; ++s) {
+            tick_simulation();
+        }
         loop.RunOnce();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
     return 0;

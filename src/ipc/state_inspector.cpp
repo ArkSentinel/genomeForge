@@ -19,7 +19,11 @@ bool StateInspector::dump_live_state_json(
     const genome::moe::MoEEngine& moe_engine,
     const std::vector<genome::crispr::GuideCandidate>& crispr_candidates,
     bool crispr_applied,
-    const genome::twin::CellTwinSimulator& cell_twin
+    const genome::twin::CellTwinSimulator& cell_twin,
+    size_t sim_speed_multiplier,
+    float petri_zoom,
+    float petri_pan_x,
+    float petri_pan_y
 ) {
     std::string temp_path = filepath + ".tmp";
     std::ofstream out(temp_path);
@@ -52,7 +56,8 @@ bool StateInspector::dump_live_state_json(
         << "    \"e_core_avg_usage\": " << hw_metrics.e_core_avg_usage << ",\n"
         << "    \"memory_used_gb\": " << std::setprecision(2) << (hw_metrics.used_memory_bytes / 1e9) << ",\n"
         << "    \"memory_total_gb\": " << std::setprecision(2) << (hw_metrics.total_memory_bytes / 1e9) << ",\n"
-        << "    \"memory_used_percent\": " << std::setprecision(1) << hw_metrics.memory_used_percent << "\n"
+        << "    \"memory_used_percent\": " << std::setprecision(1) << hw_metrics.memory_used_percent << ",\n"
+        << "    \"realtime_speed_multiplier\": " << sim_speed_multiplier << "\n"
         << "  },\n"
         << "  \"genomics\": {\n"
         << "    \"total_variants\": " << vcf_parser.total_variants() << ",\n"
@@ -102,7 +107,10 @@ bool StateInspector::dump_live_state_json(
         << "    \"time_warp_scale\": \"" << cell_twin.get_time_scale_label() << "\",\n"
         << "    \"time_multiplier\": " << std::setprecision(1) << twin_m.time_multiplier << ",\n"
         << "    \"simulated_seconds\": " << std::setprecision(2) << twin_m.simulated_seconds << ",\n"
-        << "    \"simulated_time\": \"" << twin_m.simulated_time_str << "\"\n"
+        << "    \"simulated_time\": \"" << twin_m.simulated_time_str << "\",\n"
+        << "    \"petri_zoom_level\": " << std::fixed << std::setprecision(2) << petri_zoom << ",\n"
+        << "    \"petri_pan_x\": " << std::setprecision(2) << petri_pan_x << ",\n"
+        << "    \"petri_pan_y\": " << std::setprecision(2) << petri_pan_y << "\n"
         << "  }\n"
         << "}\n";
 

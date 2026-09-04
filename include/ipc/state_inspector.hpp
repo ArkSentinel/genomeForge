@@ -24,7 +24,11 @@ public:
         const genome::moe::MoEEngine& moe_engine,
         const std::vector<genome::crispr::GuideCandidate>& crispr_candidates,
         bool crispr_applied,
-        const genome::twin::CellTwinSimulator& cell_twin
+        const genome::twin::CellTwinSimulator& cell_twin,
+        size_t sim_speed_multiplier = 1,
+        float petri_zoom = 1.0f,
+        float petri_pan_x = 0.0f,
+        float petri_pan_y = 0.0f
     );
 
     // Lee el archivo de estado en vivo e imprime un reporte estructurado de diagnóstico en stdout

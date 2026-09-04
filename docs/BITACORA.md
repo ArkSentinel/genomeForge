@@ -221,5 +221,53 @@ Este documento registra cronológicamente las decisiones de diseño, hitos de im
   * Inspección en vivo verificada (`make inspect`).
   * Verificación de consistencia y formato en todos los archivos CSV generados.
 
+---
+
+### Entrada #009: Acelerador Cinético en Tiempo Real (1x-32x) y Microscopio Virtual de Alta Magnificación con Zoom y Pan Óptico
+* **Fecha:** 2026-09-04
+* **Objetivo:**
+  1. Proveer aceleración del motor de simulación física/biológica en tiempo real mediante multiplicador dinámico de pasos ($1\times, 2\times, 4\times, 8\times, 16\times, 32\times$) seleccionable por teclado.
+  2. Implementar un microscopio virtual sobre la placa de Petri con zoom óptico continuo/discreto ($1.0\times$ a $8.0\times$) y paneo bidireccional sobre el cultivo celular.
+  3. Desarrollar representación citomorfológica de alta magnificación en sub-píxeles cuando el zoom óptico supere $2.0\times$ (detalle ultraestructural de huso acromático, membrana, núcleo pleomórfico y cuerpos apoptóticos).
+  4. Extender la telemetría IPC y estado en vivo (`data/live_state.json`) con las variables del microscopio y motor cinético.
+  5. Asegurar estricta conformidad con la política de cero emojis en toda la base de código, UI y documentación técnica.
+* **Componentes Implementados:**
+  1. **Controlador de Velocidad Cinética en Tiempo Real (`sim_speed_multiplier_`):**
+     * Sub-stepping físico por fotograma: para cada ciclo de refresco de interfaz (~20 FPS, 50 ms), el bucle principal ejecuta $N$ pasos discretos de `tick_simulation()` ($N \in \{1, 2, 4, 8, 16, 32\}$).
+     * Rango de tasa de simulación: 20 Hz a 640 Hz de throughput físico/matemático para cinemática celular, integración ODE RK4 y enrutamiento MoE.
+     * Atajos de teclado dedicados: `[ < ]` / `[ , ]` para decrementar la velocidad ($32\times \to 1\times$) y `[ > ]` / `[ . ]` para incrementarla ($1\times \to 32\times$).
+     * Adaptación de I/O a disco: `save_live_state()` se ejecuta de forma escalada para evitar cuellos de botella en almacenamiento masivo manteniendo ~100 ms de latencia para inspección externa.
+  2. **Microscopio Virtual con Zoom Óptico y Navegación Pan (`petri_zoom_`, `petri_pan_x_`, `petri_pan_y_`):**
+     * Factores de escala dinámica en canvas Braille:
+       $$scale_x = \left(\frac{width / 2 - 6}{45.0}\right) \times zoom$$
+       $$scale_y = \left(\frac{height / 2 - 5}{45.0}\right) \times zoom$$
+     * Proyección de placa de Petri y bisel exterior con radio escalado y traslación pan.
+     * Limitación de recorrido de cámara (*camera clamp*) para mantener la lente dentro del radio biológico de la placa:
+       $$max\_pan = 40.0 \times \left(1.0 - \frac{1.0}{zoom}\right)$$
+     * Atajos de teclado:
+       * `[Z]`: Acercar zoom óptico ($1.0\times \to 1.5\times \to 2.0\times \to 3.0\times \to 4.0\times \to 6.0\times \to 8.0\times$).
+       * `[z]`: Alejar zoom óptico.
+       * `[0]`: Restablecer vista microscópica a campo amplio $1.0\times$ centrado $(0,0)$.
+       * `[Flechas]` / `[W, A, S]`: Paneo de la cámara de observación en coordenadas espaciales del cultivo.
+  3. **Citomorfología de Alta Magnificación (Modo $\ge 2.0\times$):**
+     * **Mitosis y Surco de Clivaje:** Visualización de microtúbulos del huso acromático, constricción del anillo contráctil de actomiosina (blanco/magenta) y anillo del midbody en citocinesis.
+     * **Fibroblasto Somático:** Detalle de cuerpo celular ahusado, núcleo prominente cian y prolongaciones lamelipodiales polares azuladas.
+     * **Intermedio MET:** Masa celular redondeada compacta con condensación cromatínica periférica.
+     * **Colonia Pluripotente iPSC:** Arquitectura en adoquín (*cobblestone*) con nucleolo blanco prominente y borde de colonia bien delimitado.
+     * **Neoplasia Maligna:** Pleomorfismo nuclear severo con multinucleación excéntrica, cromatina aneuploide densa y pseudópodos atípicos invasivos.
+     * **Cuerpos Apoptóticos:** Fragmentación en múltiples vesículas apoptóticas picnóticas dispersas.
+  4. **Ampliación de Telemetría IPC (`include/ipc/state_inspector.hpp` / `src/ipc/state_inspector.cpp`):**
+     * Serialización de `"realtime_speed_multiplier"` en la sección de sistema.
+     * Serialización de `"petri_zoom_level"`, `"petri_pan_x"` y `"petri_pan_y"` en la sección de gemelo digital.
+  5. **Actualización de Interfaz y Footer:**
+     * Badge de cabecera en placa de Petri: `⟦ ÓPTICA: Z.Zx | VEL: Nx ⟧`.
+     * Tarjeta lateral de telemetría: módulo `◈ CINÉTICA REAL & MICROSCOPIO` con métricas de Hz, zoom, pan y atajos.
+     * Barra inferior (*footer*): atajos integrados `[ < / > ] Vel Real`, `[Z / z / 0] Zoom Petri`.
+* **Validación y Pruebas:**
+  * Compilación limpia con Apple Clang C++20 (`make build`).
+  * Verificación de serialización JSON con `make headless` y `make inspect`.
+  * Verificación de cero emojis con analizador unicode exhaustivo sobre todo el repositorio.
+
+
 
 

@@ -240,18 +240,38 @@ La simulación permite alterar dinámicamente la escala del tiempo a través de 
 
 ---
 
-### Visualización Citomorfológica en Canvas Braille
+### Visualización Citomorfológica en Canvas Braille y Microscopio Virtual de Alta Magnificación
 
-Sobre el `Canvas` de FTXUI ($114 \times 70$ sub-píxeles Braille), cada fenotipo celular se dibuja con su estructura citológica característica:
+Sobre el `Canvas` de FTXUI ($114 \times 70$ sub-píxeles Braille), la placa de Petri se modela con un microscopio virtual con zoom óptico continuo/discreto ($1.0\times$ a $8.0\times$) y navegación pan:
 
-* **Fibroblasto Somático (`SomaticFibroblast`):** Morfología fusiforme alargada bipolar orientada según el vector de velocidad $(v_x, v_y)$ con núcleo oval central cian.
-* **Intermedio MET (`IntermediateReprog`):** Célula redondeada en transición mesénquima-epitelio en color amarillo.
-* **Colonia iPSC Pluripotente (`PluripotentIPSC`):** Colonias epiteliales compactas tipo cobblestone con núcleo esmeralda y halo verde periférico cohesivo.
-* **Clon Neoplásico Maligno (`TransformedMalignant`):** Pleomorfismo celular severo con núcleos gigantes hipercromáticos e irregulares en rojo carmesí.
-* **Cuerpo Apoptótico (`ApoptoticCorpse`):** Picnosis y blebbing celular disperso en restos celulares punteados en gris pizarra.
-* **Surco de División Mitótica (`cleavage_state`):** Constricción en reloj de arena (dumbbell) en anafase tardía y dobletes de telofase previos a la citocinesis en magenta y blanco.
+* **Microscopio Virtual (`[Z / z / 0]`):**
+  * Campo amplio ($1.0\times$): Visión panorámica completa del cultivo y bordes de la placa de Petri.
+  * Alta magnificación ($\ge 2.0\times$): Resolución ultraestructural sub-celular detallada.
+  * Paneo de cámara (`[Flechas]` / `[W, A, S]`): Desplaza el campo de visión sobre cualquier sector del cultivo con fijación automática de márgenes (*camera clamp*).
+* **Morfología por Fenotipo Celular:**
+  * **Fibroblasto Somático (`SomaticFibroblast`):** Morfología fusiforme alargada bipolar orientada según el vector de velocidad $(v_x, v_y)$ con núcleo oval central cian; en alta magnificación proyecta lamelipodios polares extendidos.
+  * **Intermedio MET (`IntermediateReprog`):** Célula redondeada en transición mesénquima-epitelio en color amarillo con condensación cromatínica periférica.
+  * **Colonia iPSC Pluripotente (`PluripotentIPSC`):** Colonias epiteliales compactas tipo cobblestone con núcleo esmeralda y nucleolo blanco prominente, delimitadas por un halo verde cohesivo.
+  * **Clon Neoplásico Maligno (`TransformedMalignant`):** Pleomorfismo celular severo con núcleos gigantes hipercromáticos e irregulares en rojo carmesí, multinucleación atípica y pseudópodos invasivos.
+  * **Cuerpo Apoptótico (`ApoptoticCorpse`):** Picnosis y blebbing celular disperso en múltiples vesículas y fragmentos picnóticos en gris pizarra.
+  * **Surco de División Mitótica (`cleavage_state`):** Constricción en reloj de arena (dumbbell) con huso acromático visible en anafase tardía y dobletes celulares con anillo de telofase/midbody previos a la citocinesis en magenta y blanco.
 
 ---
+
+### Acelerador Cinético en Tiempo Real (1x..32x)
+
+A diferencia del **Time Warp** biológico (que altera el diferencial $dt$ de segundos a décadas), el **Multiplicador de Velocidad en Tiempo Real** acelera el throughput físico y de integración de la simulación mediante sub-stepping por fotograma:
+
+| Multiplicador Real | Frecuencia de Cómputo | Capacidad de Simulación |
+| :---: | :---: | :--- |
+| **$1\times$** | $20\text{ Hz}$ | Velocidad estándar en tiempo real (~20 fotogramas de interfaz por segundo). |
+| **$2\times$** | $40\text{ Hz}$ | $2$ pasos de física celular y solver ODE por fotograma. |
+| **$4\times$** | $80\text{ Hz}$ | Aceleración media para observar migración celular y confluencia rápida. |
+| **$8\times$** | $160\text{ Hz}$ | Alta velocidad para dinámicas de división y reprogramación activa. |
+| **$16\times$** | $320\text{ Hz}$ | Dinámica acelerada para ensayos de apoptosis masiva por irradiación UV. |
+| **$32\times$** | $640\text{ Hz}$ | Máximo rendimiento cinético en Apple Silicon para simulación ultra-rápida. |
+
+* **Atajos:** `[ < ]` / `[ , ]` para decrementar la velocidad y `[ > ]` / `[ . ]` para incrementarla.
 
 ## 6. Interoperabilidad: Modo Headless, Inspector IA y Datasets CSV
 
@@ -352,6 +372,12 @@ Opciones Principales:
 | :---: | :--- |
 | **`1` .. `7`** | Salto directo a cualquiera de las 7 pestañas del Cyber-HUD. |
 | **`Tab`** | Ciclar secuencialmente a la siguiente pestaña. |
+| **`<` / `,`** | **Disminuir Velocidad Real:** Reduce los sub-pasos del motor físico/ODE ($32\times \to 1\times$, $640\text{ Hz} \to 20\text{ Hz}$). |
+| **`>` / `.`** | **Aumentar Velocidad Real:** Acelera los sub-pasos del motor físico/ODE ($1\times \to 32\times$, $20\text{ Hz} \to 640\text{ Hz}$). |
+| **`Z`** | **Zoom In Microscopio:** Incrementa el aumento óptico de la placa de Petri ($1.0\times \to 8.0\times$). |
+| **`z`** | **Zoom Out Microscopio:** Reduce el aumento óptico de la placa de Petri hacia el campo amplio. |
+| **`0`** | **Reset Microscopio:** Restablece el zoom a $1.0\times$ y centra las coordenadas pan en $(0,0)$. |
+| **`↑ ↓ ← →` / `W A S`** | **Pan Óptico (Tab 7):** Paneo espacial bidireccional sobre las células de la placa de Petri. |
 | **`[`** | **Frenar Time Warp:** Reduce la escala temporal biológica (ej. Horas -> Minutos -> Segundos). |
 | **`]`** | **Acelerar Time Warp:** Incrementa la escala temporal biológica (ej. Días -> Semanas -> Años -> Décadas). |
 | **`X`** | **Exportar Datasets CSV:** Guarda censo, células individuales y variantes en `data/`. |
@@ -360,7 +386,7 @@ Opciones Principales:
 | **`C`** | **CRISPR In-Situ:** Administra terapia génica en la placa de Petri para corregir mutaciones de *TP53*. |
 | **`U`** | **Estrés Genotóxico:** Dispara un pulso de radiación UV para poner a prueba los puntos de control. |
 | **`+` / `-`** | Inocular / aspirar células del cultivo virtual de la placa de Petri (±25 células). |
-| **`↑` / `↓` o `k` / `j`** | Navegar verticalmente por listas de variantes VCF o candidatos gRNA CRISPR. |
+| **`↑` / `↓` o `k` / `j`** | Navegar verticalmente por listas de variantes VCF o candidatos gRNA CRISPR (Tabs 2 y 5). |
 | **`E`** | **Edición CRISPR (HDR):** Aplica corrección in-silico por homología sobre la variante VCF seleccionada. |
 | **`R`** | **Reset Basal:** Restaura el cultivo celular (en Tab 7) o reinyecta la mutación en el genoma original. |
 | **`Espacio`** | Pausar o reanudar el avance temporal de los motores biológicos y la biofísica. |
