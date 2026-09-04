@@ -1,5 +1,6 @@
 #include "ui/tui_app.hpp"
 #include "ipc/state_inspector.hpp"
+#include "storage/sqlite_storage.hpp"
 
 #include <iostream>
 #include <string>
@@ -18,6 +19,8 @@ void print_usage(const char* prog_name) {
               << "  --ticks <N>            Número de iteraciones a ejecutar en modo headless (default: 30)\n"
               << "  --report-onco [path]   Genera el reporte clínico de Comité Molecular de Tumores (MTB)\n"
               << "  --test-workflows       Ejecuta y verifica los 5 protocolos clínicos del motor de Workflows\n"
+              << "  --db-summary [path]    Muestra el resumen estadístico del repositorio SQLite3\n"
+              << "  --db <path>            Ruta a la base de datos SQLite3 (default: data/genome_forge.db)\n"
               << "  --snapshot <path>      Ruta del archivo JSON de telemetría (default: data/live_state.json)\n"
               << "  --inspect [path]       Inspecciona el estado de la TUI en vivo y muestra reporte HUD\n"
               << "  --export-csv           Fuerza la exportación de datasets CSV al finalizar\n"
@@ -26,6 +29,7 @@ void print_usage(const char* prog_name) {
               << "  [1..9] o [Tab]         Navegar entre las 9 pestañas del Cyber-HUD (incluye Workflows)\n"
               << "  [Clic]                 Clic nativo en pestañas, botones de acción, protocolos y listas\n"
               << "  [F]                    Abrir explorador modal interactivo de muestras VCF\n"
+              << "  [B]                    Persistir instantánea del estado actual en SQLite3\n"
               << "  [M]                    Alternar entre Paciente Clínico y Control Sano 1000 Genomas\n"
               << "  [L]                    Conmutar locus clínico (TP53, CDKN2A, PTEN, MYC, BRCA1, EGFR, KRAS, BRAF...)\n"
               << "  [O]                    Exportar Reporte Clínico de Comité Molecular de Tumores (MTB)\n"
@@ -57,6 +61,8 @@ int main(int argc, char* argv[]) {
     bool inspect = false;
     bool report_onco = false;
     bool test_workflows = false;
+    bool db_summary = false;
+    std::string db_path = "data/genome_forge.db";
     std::string report_onco_path = "data/molecular_tumor_board_report.md";
     std::string inspect_path = "data/live_state.json";
     std::string snapshot_path = "data/live_state.json";
@@ -81,6 +87,13 @@ int main(int argc, char* argv[]) {
             }
         } else if (arg == "--test-workflows") {
             test_workflows = true;
+        } else if (arg == "--db-summary") {
+            db_summary = true;
+            if (i + 1 < argc && argv[i + 1][0] != '-') {
+                db_path = argv[++i];
+            }
+        } else if (arg == "--db" && i + 1 < argc) {
+            db_path = argv[++i];
         } else if (arg == "--snapshot" && i + 1 < argc) {
             snapshot_path = argv[++i];
         } else if (arg == "--inspect") {
@@ -91,6 +104,13 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--export-csv") {
             export_csv = true;
         }
+    }
+
+    // Modo de consulta de base de datos SQLite3
+    if (db_summary) {
+        genome::storage::SQLiteStorage storage(db_path);
+        storage.print_database_summary();
+        return 0;
     }
 
     // Modo de inspección de estado para AI Assistant / CLI

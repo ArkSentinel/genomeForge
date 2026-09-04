@@ -446,6 +446,20 @@ make test-workflows
 ```
 El motor ejecuta de forma secuencial la ingesta de muestras, diagnósticos moleculares, cribado de fármacos FDA Nivel 1, inoculación en el gemelo digital, simulación biofísica, verificación de resistencia clonal y emisión de reportes MTB en Markdown y JSON.
 
+### 5. Repositorio de Persistencia Relacional con SQLite3
+GenomeForge-TUI incorpora un motor de persistencia relacional nativo en SQLite3 (`include/storage/sqlite_storage.hpp`) alojado en `data/genome_forge.db`. Almacena y audita automáticamente:
+* **`simulations`:** Historial de corridas de simulación con métricas celulares, R-Score medio, fármaco activo y % de regresión.
+* **`clinical_reports`:** Registro de informes de Comité Molecular de Tumores (MTB) con TMB (mut/Mb), dianas prescritas y rutas de archivo.
+* **`workflow_runs`:** Trazabilidad de cada protocolo clínico ejecutado, pasos completados y dictamen de seguridad.
+
+Para consultar el estado e historial del repositorio desde la terminal:
+```bash
+make db-summary
+# o directamente:
+./build/genome_forge --db-summary
+```
+También es posible persistir instantáneas en cualquier momento desde la TUI pulsando la tecla `[B]`.
+
 ---
 
 ## 8. Integración Multi-Locus con el Proyecto 1000 Genomas (12 Loci Clínicos)
@@ -570,7 +584,7 @@ Opciones Principales:
 
 ## 12. Licencia
 
-Este proyecto está distribuido bajo la licencia de código abierto **MIT License**. Consulte el archivo [`LICENSE`](LICENSE) para obtener más detalles.
+Este proyecto está distribuido bajo la licencia de código abierto **Apache License, Version 2.0**. Consulte el archivo [`LICENSE`](LICENSE) para obtener los términos y condiciones completos de uso, modificación, distribución y concesión explícita de patentes.
 
 Copyright (c) 2026 ArkSentinel. Todos los derechos reservados.
 

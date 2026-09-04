@@ -19,3 +19,7 @@ test_*
 # Generated live state and data exports
 data/live_state.json*
 data/export_*.csv
+*.db
+*.sqlite*
+*.db-journal
+*.db-wal

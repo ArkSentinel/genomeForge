@@ -2,7 +2,7 @@
 ## Precision Oncology & Targeted Therapeutics Evaluation
 
 ================================================================================
-Fecha del Informe:          2026-09-04 14:19:34
+Fecha del Informe:          2026-09-04 14:41:54
 ID de Muestra / Paciente:   PATIENT_ONCOLOGY_SAMPLE
 Genoma de Referencia:       GRCh38 / hg38 (1000 Genomes Standard)
 Motor de Análisis:          GenomeForge-TUI v2.2 (Apple Silicon AMX/Metal)
@@ -17,8 +17,8 @@ Archivo VCF Origen:         data/sample_patient_oncology.vcf
 | **Variantes Patogénicas (Drivers)** | 8 | Alteraciones conductoras confirmadas |
 | **Colisiones de Reprogramación** | 2 | Conflictos con factores de pluripotencia |
 | **Carga Mutacional Tumoral (TMB)** | 15.0 mut/Mb | ALTA (Candidato a Inmunoterapia Anti-PD-1) |
-| **Puntaje de Riesgo Oncogénico (R-Score)** | 0.9800 | HIGH RISK (Malignant Drift) |
-| **Integridad Funcional de TP53** | 1.30% | COLAPSO TUMORAL (Pérdida de apoptosis) |
+| **Puntaje de Riesgo Oncogénico (R-Score)** | 0.5131 | HIGH RISK (Malignant Drift) |
+| **Integridad Funcional de TP53** | 10.00% | COLAPSO TUMORAL (Pérdida de apoptosis) |
 
 ### 2. ALTERACIONES MOLECULARES CONDUCTORAS (ONCOGENIC DRIVERS)
 

@@ -1,6 +1,6 @@
 {
   "report_type": "MOLECULAR_TUMOR_BOARD_SUMMARY",
-  "timestamp": "2026-09-04 14:19:34",
+  "timestamp": "2026-09-04 14:41:54",
   "sample_id": "PATIENT_ONCOLOGY_SAMPLE",
   "reference_genome": "GRCh38",
   "vcf_source": "data/sample_patient_oncology.vcf",
@@ -10,8 +10,8 @@
     "yamanaka_collisions": 2,
     "tmb_mut_per_mb": 15.00,
     "high_tmb": true,
-    "r_score": 0.9800,
-    "p53_integrity": 0.0130
+    "r_score": 0.5131,
+    "p53_integrity": 0.1000
   },
   "actionable_biomarkers": [
     {

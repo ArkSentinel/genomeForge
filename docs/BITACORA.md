@@ -390,6 +390,44 @@ Este documento registra cronológicamente las decisiones de diseño, hitos de im
   - Verificación de ejecución headless (`make headless`), generación de reportes (`make test-onco`) e inspección IPC (`make inspect`).
   - Verificación con escáner unicode certificando 0 emojis en los archivos del proyecto.
 
+---
+
+### Entrada #013: Adopción de Licencia Apache 2.0 y Subsistema de Persistencia Relacional con SQLite3 (v2.4)
+* **Fecha:** 2026-09-04
+* **Objetivo:**
+  1. Adoptar formalmente la licencia de código abierto Apache License, Version 2.0 en sustitución de MIT, otorgando permisos libres para uso, modificación y distribución, a la vez que se protegen las patentes algorítmicas, bioinformáticas y la atribución/marca de ArkSentinel.
+  2. Implementar un subsistema de persistencia relacional nativo en C++20 con SQLite3 (`SQLiteStorage`), aprovechando la biblioteca nativa de macOS (`libsqlite3`, SQLite v3.51) sin añadir dependencias externas pesadas.
+  3. Indexar y almacenar de forma persistente y estructurada en `data/genome_forge.db`:
+     - Corridas de simulación celular y biofísica (`simulations`).
+     - Informes de Comité Molecular de Tumores con TMB, R-Score y dianas prescritas (`clinical_reports`).
+     - Historial de ejecuciones de workflows clínicos paso a paso (`workflow_runs`).
+  4. Integrar la persistencia automática en la TUI al completar workflows clínicos, emitir reportes MTB o ejecutar simulaciones headless, además de habilitar el atajo `[B]` para guardado manual.
+  5. Habilitar el comando CLI `--db-summary [path]` y el objetivo `make db-summary` para inspeccionar las métricas y registros del repositorio SQLite directamente en la terminal.
+* **Componentes y Cambios Implementados:**
+  1. **Licencia Apache 2.0 (`LICENSE`, `README.md`):**
+     - Migración completa del texto de licencia a Apache License 2.0 con copyright a ArkSentinel (2026).
+  2. **Módulo de Almacenamiento SQLite3 (`include/storage/sqlite_storage.hpp` / `src/storage/sqlite_storage.cpp`):**
+     - Clase `SQLiteStorage` con manejo transaccional de SQLite, preparación de sentencias (`sqlite3_prepare_v2`), enlace de tipos y transacciones seguras.
+     - Creación idempotente de tablas e índices (`idx_simulations_timestamp`, `idx_reports_sample`, `idx_workflow_name`).
+     - Métodos `record_simulation`, `record_clinical_report`, `record_workflow_run`, `get_recent_simulations`, `get_recent_reports`, `get_recent_workflows` y `print_database_summary`.
+  3. **Integración en la Aplicación TUI (`include/ui/tui_app.hpp` / `src/ui/tui_app.cpp`):**
+     - Miembro `db_storage_` y método `persist_current_state_to_db`.
+     - Grabación automática tras ejecución de workflows en `run_active_workflow_full` y `test_all_workflows_headless`.
+     - Grabación automática de informes clínicos en `export_molecular_tumor_board_report`.
+     - Grabación de corridas en `run_headless`.
+     - Atajo de teclado `[B]` y etiqueta `[B] Guardar DB` en el footer HUD.
+  4. **Build System y CLI (`CMakeLists.txt`, `src/main.cpp`, `Makefile`):**
+     - Enlace con biblioteca nativa `sqlite3`.
+     - Banderas CLI `--db-summary` y `--db <path>`.
+     - Target de Makefile `make db-summary`.
+* **Validación y Pruebas:**
+  - Compilación limpia con Apple Clang C++20 (`make build`).
+  - Ejecución de `make db-summary` mostrando archivo `data/genome_forge.db` inicializado.
+  - Ejecución de `make test-workflows`: 5/5 protocolos ejecutados y registrados en SQLite.
+  - Ejecución de `make test-onco`: reportes MTB registrados en SQLite.
+  - Inspección con `sqlite3 data/genome_forge.db` validando integridad de tablas e inserciones.
+  - Verificación estricta de CERO EMOJIS en todos los archivos del repositorio.
+
 
 
 

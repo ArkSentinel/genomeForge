@@ -2,7 +2,7 @@
 ## Precision Oncology & Targeted Therapeutics Evaluation
 
 ================================================================================
-Fecha del Informe:          2026-09-04 14:19:34
+Fecha del Informe:          2026-09-04 14:41:54
 ID de Muestra / Paciente:   PATIENT_ONCOLOGY_SAMPLE
 Genoma de Referencia:       GRCh38 / hg38 (1000 Genomes Standard)
 Motor de Análisis:          GenomeForge-TUI v2.2 (Apple Silicon AMX/Metal)
@@ -17,8 +17,8 @@ Archivo VCF Origen:         data/sample_patient_resistance.vcf
 | **Variantes Patogénicas (Drivers)** | 3 | Alteraciones conductoras confirmadas |
 | **Colisiones de Reprogramación** | 1 | Conflictos con factores de pluripotencia |
 | **Carga Mutacional Tumoral (TMB)** | 5.0 mut/Mb | BAJA / MODERADA |
-| **Puntaje de Riesgo Oncogénico (R-Score)** | 0.9800 | HIGH RISK (Malignant Drift) |
-| **Integridad Funcional de TP53** | 4.07% | COLAPSO TUMORAL (Pérdida de apoptosis) |
+| **Puntaje de Riesgo Oncogénico (R-Score)** | 0.5131 | HIGH RISK (Malignant Drift) |
+| **Integridad Funcional de TP53** | 10.00% | COLAPSO TUMORAL (Pérdida de apoptosis) |
 
 ### 2. ALTERACIONES MOLECULARES CONDUCTORAS (ONCOGENIC DRIVERS)
 
@@ -44,17 +44,17 @@ Archivo VCF Origen:         data/sample_patient_resistance.vcf
 ### 5. PLAN DE RESCATE POR EDICIÓN GÉNICA CRISPR-CAS9 (HDR IN-SILICO)
 
 * **Locus Diana:** EGFR
-* **Secuencia de Guía (Protospacer 20 nt):** `5'-CACGCAGATGTTTTGCCAGT-3'`
+* **Secuencia de Guía (Protospacer 20 nt):** `5'-CAACAAGATGTTTTGCCAGT-3'`
 * **Motivo PAM (NGG):** `TGG` (Offset relativo: 15)
-* **Score de Eficiencia On-Target (Rule Set 2):** 58.0 / 100.0
+* **Score de Eficiencia On-Target (Rule Set 2):** 53.0 / 100.0
 * **Molde de Reparación Donante (ssODN HDR):** `5'-TGCAGCTGTGGGTTGATTCCACACCCCCGCCCGGCACCCGCGTCCGCGCCATGGC-3'`
 * **Objetivo Terapéutico:** Sustituir codón mutado restaurando el marco de lectura salvaje y la funcionalidad de apoptosis.
 
 ### 6. PRONÓSTICO FARMACODINÁMICO DEL GEMELO DIGITAL (IN-SILICO SCREEN)
 
-* **Fármaco Activo en Ensayo:** Osimertinib (3rd-Gen EGFR TKI)
-* **Dosis Simulada:** 2.00 uM
-* **Tasa de Regresión Tumoral Calculada:** 100.0%
+* **Fármaco Activo en Ensayo:** None (Vehicle Control)
+* **Dosis Simulada:** 0.00 uM
+* **Tasa de Regresión Tumoral Calculada:** 0.0%
 * **Población Celular:** 180 células totales (0 clones tumorales, 180 somáticas)
 * **Clones con Resistencia Emergente:** 0 células (Sensibilidad completa)
 * **Confluencia Final del Tejido:** 43.0%

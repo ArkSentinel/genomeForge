@@ -10,6 +10,7 @@
 #include "oncology/actionability_engine.hpp"
 #include "export/report_generator.hpp"
 #include "workflow/workflow_engine.hpp"
+#include "storage/sqlite_storage.hpp"
 #include "ftxui/screen/box.hpp"
 
 #include <string>
@@ -80,6 +81,10 @@ public:
     void load_vcf_dynamic(const std::string& path);
     bool is_file_picker_open() const { return show_file_picker_; }
 
+    // Persistencia relacional SQLite3
+    void persist_current_state_to_db(const std::string& notes = "");
+    genome::storage::SQLiteStorage& get_storage() { return db_storage_; }
+
 private:
     void init_simulation_state();
     void refresh_onco_analysis();
@@ -108,6 +113,7 @@ private:
     genome::oncology::ActionabilityEngine onco_engine_;
     genome::oncology::ActionabilityAnalysis onco_analysis_;
     genome::workflow::WorkflowEngine workflow_engine_;
+    genome::storage::SQLiteStorage db_storage_;
 
     // Pestaña activa
     AppTab current_tab_{AppTab::Dashboard};

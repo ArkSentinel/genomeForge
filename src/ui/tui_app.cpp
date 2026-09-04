@@ -173,8 +173,44 @@ void GenomeForgeApp::export_molecular_tumor_board_report(const std::string& file
     if (ok) {
         add_log("REPORT", "Molecular Tumor Board Report exported to: " + filepath);
         add_log("REPORT", "JSON clinical export saved to: " + json_path);
+
+        // Registrar informe clínico en SQLite
+        genome::storage::ReportRecord rec;
+        rec.timestamp = genome::storage::SQLiteStorage::current_iso_timestamp();
+        rec.sample_id = sample_id;
+        rec.tmb_score = onco_analysis_.tumor_mutational_burden;
+        rec.r_score = cell_twin_.get_metrics().average_r_score;
+        rec.biomarkers_count = onco_analysis_.detected_biomarkers.size();
+        rec.level1_count = onco_analysis_.level1_count;
+        rec.report_md_path = filepath;
+        rec.report_json_path = json_path;
+        db_storage_.record_clinical_report(rec);
+        add_log("SQLITE", "Indexed clinical MTB report in SQLite repository.");
     } else {
         add_log("ERROR", "Failed to export MTB report to: " + filepath);
+    }
+}
+
+void GenomeForgeApp::persist_current_state_to_db(const std::string& notes) {
+    refresh_onco_analysis();
+    const auto& tm = cell_twin_.get_metrics();
+    genome::storage::SimulationRecord rec;
+    rec.timestamp = genome::storage::SQLiteStorage::current_iso_timestamp();
+    rec.sample_name = healthy_reference_mode_ ? "HG00096_HEALTHY" : "PATIENT_SAMPLE";
+    rec.vcf_path = vcf_path_;
+    rec.total_variants = vcf_parser_.total_variants();
+    rec.pathogenic_variants = vcf_parser_.pathogenic_count();
+    rec.r_score = tm.average_r_score;
+    rec.confluence = tm.confluence;
+    rec.living_cells = tm.total_cells;
+    rec.active_drug = cell_twin_.get_active_drug_name();
+    rec.tumor_regression_pct = cell_twin_.get_tumor_regression_percent();
+    rec.resistant_cells = tm.drug_resistant_cells;
+    rec.notes = notes.empty() ? ("Locus: " + vcf_parser_.get_active_locus()) : notes;
+
+    int64_t id = db_storage_.record_simulation(rec);
+    if (id > 0) {
+        add_log("SQLITE", "Saved simulation snapshot [ID " + std::to_string(id) + "] to " + db_storage_.get_db_path());
     }
 }
 
@@ -290,6 +326,19 @@ void GenomeForgeApp::run_active_workflow_full() {
     }
     wf->set_running(false);
     add_log("WORKFLOW", "Protocol execution completed successfully: " + wf->get_name());
+
+    // Registrar corrida en SQLite
+    genome::storage::WorkflowRunRecord wrec;
+    wrec.timestamp = genome::storage::SQLiteStorage::current_iso_timestamp();
+    wrec.workflow_id = wf->get_id();
+    wrec.workflow_name = wf->get_name();
+    wrec.total_steps = wf->get_steps().size();
+    wrec.completed_steps = wf->get_current_step_index();
+    wrec.status = "SUCCESS_100_PCT";
+    wrec.summary_findings = "Protocolo completado satisfactoriamente sobre muestra: " + vcf_path_;
+    db_storage_.record_workflow_run(wrec);
+
+    persist_current_state_to_db("Workflow completado: " + wf->get_name());
 }
 
 int GenomeForgeApp::test_all_workflows_headless() {
@@ -324,9 +373,23 @@ int GenomeForgeApp::test_all_workflows_headless() {
             step_idx++;
         }
         std::cout << "  [STATUS] Protocol " << wf->get_name() << " completed: 100% SUCCESS.\n\n";
+
+        // Registrar en SQLite
+        genome::storage::WorkflowRunRecord wrec;
+        wrec.timestamp = genome::storage::SQLiteStorage::current_iso_timestamp();
+        wrec.workflow_id = wf->get_id();
+        wrec.workflow_name = wf->get_name();
+        wrec.total_steps = wf->get_steps().size();
+        wrec.completed_steps = step_idx;
+        wrec.status = "SUCCESS_HEADLESS";
+        wrec.summary_findings = "Validacion automatica headless sobre muestra: " + vcf_path_;
+        db_storage_.record_workflow_run(wrec);
     }
+
+    persist_current_state_to_db("Test headless de todos los workflows clinicos completado");
+
     std::cout << "================================================================================\n"
-              << "[+] All " << wfs.size() << " Clinical Protocols executed and validated.\n"
+              << "[+] All " << wfs.size() << " Clinical Protocols executed, validated and indexed in SQLite.\n"
               << "================================================================================\n";
     return 0;
 }
@@ -562,6 +625,8 @@ int GenomeForgeApp::run_headless(size_t max_ticks, bool export_csv, const std::s
               << "  Actionable Drivers:  " << onco_analysis_.detected_biomarkers.size() << "\n"
               << "  Matched Therapies:   " << onco_analysis_.all_recommended_drugs.size() << " (Level 1 FDA: " << onco_analysis_.level1_count << ")\n"
               << "--------------------------\n";
+
+    persist_current_state_to_db("Ejecución headless (" + std::to_string(max_ticks) + " ticks)");
 
     return 0;
 }
@@ -1856,6 +1921,7 @@ int GenomeForgeApp::run() {
             text("[T] ") | bold | color(Color::CyanLight), text("TKI  ") | color(Color::GrayLight),
             text("[P] ") | bold | color(Color::YellowLight), text("PARP  ") | color(Color::GrayLight),
             text("[O] ") | bold | color(Color::MagentaLight), text("Reporte MTB  ") | color(Color::GrayLight),
+            text("[B] ") | bold | color(Color::GreenLight), text("Guardar DB  ") | color(Color::GrayLight),
             text("[ < / > ] ") | bold | color(Color::MagentaLight), text("Velocidad  ") | color(Color::GrayLight),
             text("[Z / z / 0] ") | bold | color(Color::Cyan), text("Zoom Petri  ") | color(Color::GrayLight),
             text("[Espacio] ") | bold | color(Color::White), text("Pausa  ") | color(Color::GrayLight),
@@ -2137,6 +2203,12 @@ int GenomeForgeApp::run() {
                 if (cur + 1 < workflow_engine_.get_workflows().size()) select_workflow_by_index(cur + 1);
                 return true;
             }
+        }
+
+        // Persistencia manual en base de datos SQLite3
+        if (event == Event::Character('b') || event == Event::Character('B')) {
+            persist_current_state_to_db("Instantanea manual solicitada desde la TUI");
+            return true;
         }
 
         // Exportar Reporte de Comité Molecular de Tumores (MTB)

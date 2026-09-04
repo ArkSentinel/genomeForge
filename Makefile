@@ -35,7 +35,10 @@ test-workflows: build
 inspect: build
 	./$(BUILD_DIR)/genome_forge --inspect
 
+db-summary: build
+	./$(BUILD_DIR)/genome_forge --db-summary
+
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: all build run run-1000g fetch headless report test-onco test-workflows inspect clean
+.PHONY: all build run run-1000g fetch headless report test-onco test-workflows inspect db-summary clean

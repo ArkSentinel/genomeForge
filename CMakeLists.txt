@@ -40,6 +40,7 @@ add_executable(genome_forge
     src/export/report_generator.cpp
     src/oncology/actionability_engine.cpp
     src/workflow/workflow_engine.cpp
+    src/storage/sqlite_storage.cpp
     src/ipc/state_inspector.cpp
     src/ui/tui_app.cpp
 )
@@ -52,6 +53,7 @@ target_link_libraries(genome_forge PRIVATE
     ftxui::screen
     ftxui::dom
     ftxui::component
+    sqlite3
     "-framework Accelerate"
     "-framework Metal"
     "-framework Foundation"
