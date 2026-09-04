@@ -1,0 +1,17 @@
+# Build artifacts
+build/
+bin/
+lib/
+*.o
+*.a
+*.dylib
+*.dSYM/
+*.metallib
+*.air
+
+# macOS
+.DS_Store
+
+# Temporary test binaries
+test_*
+*.tmp

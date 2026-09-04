@@ -1,0 +1,22 @@
+##fileformat=VCFv4.2
+##fileDate=20260904
+##source=GenomeForgeSyntheticPatientGenerator
+##reference=GRCh38
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">
+##INFO=<ID=GENE,Number=1,Type=String,Description="Gene Symbol">
+##INFO=<ID=IMPACT,Number=1,Type=String,Description="Predicted Functional Impact">
+##INFO=<ID=CLNSIG,Number=1,Type=String,Description="ClinVar Clinical Significance">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	PATIENT_001
+chr17	7673802	rs28934578	G	A	999	PASS	GENE=TP53;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.48;DP=112	GT:AD:DP:GQ	0/1:58,54:112:99
+chr9	21971152	rs104894086	C	T	845	PASS	GENE=CDKN2A;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.51;DP=94	GT:AD:DP:GQ	0/1:46,48:94:99
+chr8	127736000	rs4645959	T	C	720	PASS	GENE=MYC;IMPACT=MODIFIER;CLNSIG=Uncertain_significance;AF=0.32;DP=88	GT:AD:DP:GQ	0/1:60,28:88:95
+chr10	87864470	rs121909224	A	G	610	PASS	GENE=PTEN;IMPACT=MODERATE;CLNSIG=Likely_pathogenic;AF=0.42;DP=76	GT:AD:DP:GQ	0/1:44,32:76:90
+chr3	179234297	rs121913279	E	G	999	PASS	GENE=PIK3CA;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.45;DP=104	GT:AD:DP:GQ	0/1:57,47:104:99
+chr7	55181378	rs121434568	C	T	999	PASS	GENE=EGFR;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.49;DP=120	GT:AD:DP:GQ	0/1:61,59:120:99
+chr1	115256529	rs121913529	T	C	540	PASS	GENE=NRAS;IMPACT=MODERATE;CLNSIG=Likely_benign;AF=0.15;DP=64	GT:AD:DP:GQ	0/1:54,10:64:85
+chr12	25245350	rs121913527	C	T	950	PASS	GENE=KRAS;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.47;DP=110	GT:AD:DP:GQ	0/1:58,52:110:99
