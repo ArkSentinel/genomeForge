@@ -24,7 +24,9 @@ bool StateInspector::dump_live_state_json(
     size_t sim_speed_multiplier,
     float petri_zoom,
     float petri_pan_x,
-    float petri_pan_y
+    float petri_pan_y,
+    size_t actionable_biomarkers_count,
+    size_t fda_approved_drugs_count
 ) {
     // Asegurar que el directorio contenedor exista
     std::filesystem::path out_p(filepath);
@@ -119,6 +121,14 @@ bool StateInspector::dump_live_state_json(
         << "    \"petri_zoom_level\": " << std::fixed << std::setprecision(2) << petri_zoom << ",\n"
         << "    \"petri_pan_x\": " << std::setprecision(2) << petri_pan_x << ",\n"
         << "    \"petri_pan_y\": " << std::setprecision(2) << petri_pan_y << "\n"
+        << "  },\n"
+        << "  \"oncology_actionability\": {\n"
+        << "    \"actionable_biomarkers_count\": " << actionable_biomarkers_count << ",\n"
+        << "    \"fda_approved_drugs_count\": " << fda_approved_drugs_count << ",\n"
+        << "    \"active_drug\": \"" << twin_m.active_drug_name << "\",\n"
+        << "    \"drug_dose_uM\": " << std::setprecision(2) << twin_m.drug_dose_uM << ",\n"
+        << "    \"tumor_regression_percent\": " << std::setprecision(1) << twin_m.tumor_regression_percent << ",\n"
+        << "    \"resistant_cells_count\": " << twin_m.drug_resistant_cells << "\n"
         << "  }\n"
         << "}\n";
 

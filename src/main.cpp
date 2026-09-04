@@ -16,15 +16,23 @@ void print_usage(const char* prog_name) {
               << "  --vcf <archivo.vcf>    Ruta al archivo VCF de entrada (default: data/sample_patient.vcf)\n"
               << "  --headless             Ejecuta la simulación en modo headless (sin interfaz TUI)\n"
               << "  --ticks <N>            Número de iteraciones a ejecutar en modo headless (default: 30)\n"
+              << "  --report-onco [path]   Genera el reporte clínico de Comité Molecular de Tumores (MTB)\n"
               << "  --snapshot <path>      Ruta del archivo JSON de telemetría (default: data/live_state.json)\n"
               << "  --inspect [path]       Inspecciona el estado de la TUI en vivo y muestra reporte HUD\n"
               << "  --export-csv           Fuerza la exportación de datasets CSV al finalizar\n"
               << "  --help, -h             Muestra esta ayuda detallada\n\n"
-              << "Controles en TUI Interactiva:\n"
-              << "  [1..7] o [Tab]         Navegar entre las 7 pestañas del Cyber-HUD\n"
+              << "Controles en TUI Interactiva (8 Pestañas Cyber-HUD):\n"
+              << "  [1..8] o [Tab]         Navegar entre las 8 pestañas del Cyber-HUD\n"
+              << "  [M]                    Alternar entre Paciente Clínico y Control Sano 1000 Genomas\n"
+              << "  [L]                    Conmutar locus clínico (TP53, CDKN2A, PTEN, MYC, BRCA1, EGFR, KRAS, BRAF...)\n"
+              << "  [O]                    Exportar Reporte Clínico de Comité Molecular de Tumores (MTB)\n"
+              << "  [T]                    Inocular terapia dirigida TKI (Osimertinib)\n"
+              << "  [P]                    Inocular terapia por letalidad sintética (Olaparib)\n"
+              << "  [K]                    Inocular reactivador conformacional p53 (APR-246)\n"
+              << "  [ < / > ]              Acelerar o reducir velocidad en tiempo real (1x a 32x)\n"
+              << "  [Z / z / 0]            Zoom óptico y reset del microscopio virtual de la placa de Petri\n"
               << "  [ [ / ] ]              Time Warp biológico: desacelerar o acelerar la simulación\n"
               << "  [X]                    Exportar datasets científicos a CSV (data/export_*.csv)\n"
-              << "  [L]                    Conmutar locus genómico clínico (TP53, OCT4, SOX2, KLF4, MYC)\n"
               << "  [D]                    Inyectar/retirar pulso de Doxiciclina (OSKM inducido)\n"
               << "  [C]                    Terapia génica CRISPR-Cas9 in-situ (Rescate de TP53)\n"
               << "  [U]                    Insulto genotóxico por irradiación UV\n"
@@ -39,6 +47,8 @@ int main(int argc, char* argv[]) {
     std::string vcf_path = "data/sample_patient.vcf";
     bool headless = false;
     bool inspect = false;
+    bool report_onco = false;
+    std::string report_onco_path = "data/molecular_tumor_board_report.md";
     std::string inspect_path = "data/live_state.json";
     std::string snapshot_path = "data/live_state.json";
     size_t ticks = 30;
@@ -55,6 +65,11 @@ int main(int argc, char* argv[]) {
             headless = true;
         } else if (arg == "--ticks" && i + 1 < argc) {
             ticks = std::stoull(argv[++i]);
+        } else if (arg == "--report-onco") {
+            report_onco = true;
+            if (i + 1 < argc && argv[i + 1][0] != '-') {
+                report_onco_path = argv[++i];
+            }
         } else if (arg == "--snapshot" && i + 1 < argc) {
             snapshot_path = argv[++i];
         } else if (arg == "--inspect") {
@@ -77,6 +92,21 @@ int main(int argc, char* argv[]) {
 
     try {
         genome::ui::GenomeForgeApp app(vcf_path);
+
+        // Modo de generación directa de reporte de Comité Molecular de Tumores
+        if (report_onco) {
+            std::cout << "[GenomeForge] Generando Reporte de Comité Molecular de Tumores (MTB)...\n";
+            app.export_molecular_tumor_board_report(report_onco_path);
+            std::string json_path = report_onco_path;
+            if (json_path.size() >= 3 && json_path.substr(json_path.size() - 3) == ".md") {
+                json_path = json_path.substr(0, json_path.size() - 3) + ".json";
+            } else {
+                json_path += ".json";
+            }
+            std::cout << "[+] Reporte generado en: " << report_onco_path << "\n";
+            std::cout << "[+] Reporte JSON generado en: " << json_path << "\n";
+            return 0;
+        }
 
         // Modo Headless para tests, scripting y telemetría automatizada
         if (headless) {

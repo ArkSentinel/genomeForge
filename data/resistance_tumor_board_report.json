@@ -1,0 +1,72 @@
+{
+  "report_type": "MOLECULAR_TUMOR_BOARD_SUMMARY",
+  "timestamp": "2026-09-04 13:34:48",
+  "sample_id": "PATIENT_ONCOLOGY_SAMPLE",
+  "reference_genome": "GRCh38",
+  "vcf_source": "data/sample_patient_resistance.vcf",
+  "genomics": {
+    "total_variants": 3,
+    "pathogenic_drivers": 3,
+    "yamanaka_collisions": 1,
+    "tmb_mut_per_mb": 5.00,
+    "high_tmb": false,
+    "r_score": 0.5131,
+    "p53_integrity": 0.1000
+  },
+  "actionable_biomarkers": [
+    {
+      "gene": "EGFR",
+      "variant": "p.L858R (Exon 21 activating)",
+      "position": 55181378,
+      "is_resistance": false
+    },
+    {
+      "gene": "EGFR",
+      "variant": "p.T790M (Gatekeeper resistance)",
+      "position": 55181300,
+      "is_resistance": true
+    },
+    {
+      "gene": "TP53",
+      "variant": "p.R175H (Conformational hotspot mutation)",
+      "position": 7675088,
+      "is_resistance": false
+    }
+  ],
+  "recommended_therapies": [
+    {
+      "drug_name": "Osimertinib",
+      "drug_class": "3rd-Gen Irreversible EGFR TKI",
+      "target": "EGFR",
+      "evidence_level": "Level 1 (FDA/EMA Approved)",
+      "efficacy": 0.92
+    },
+    {
+      "drug_name": "Gefitinib",
+      "drug_class": "1st-Gen Reversible EGFR TKI",
+      "target": "EGFR",
+      "evidence_level": "Level 2 (NCCN Guidelines)",
+      "efficacy": 0.78
+    },
+    {
+      "drug_name": "APR-246 (Eprenetapopt)",
+      "drug_class": "Conformational p53 Reactivator",
+      "target": "TP53",
+      "evidence_level": "Level 3 (Phase II/III Trials)",
+      "efficacy": 0.75
+    },
+    {
+      "drug_name": "CRISPR-Cas9 HDR Gene Rescue",
+      "drug_class": "Precision Exon Homology-Directed Repair",
+      "target": "TP53",
+      "evidence_level": "Level 4 (In-Silico / Preclinical)",
+      "efficacy": 0.96
+    }
+  ],
+  "digital_twin_pharmacodynamics": {
+    "active_drug": "None (Vehicle Control)",
+    "dose_uM": 0.00,
+    "tumor_regression_percent": 0.0,
+    "resistant_cells_count": 0
+  }
+}

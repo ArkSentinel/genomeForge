@@ -36,6 +36,15 @@ enum class TimeWarpScale : uint8_t {
     Decades = 7     // 315,360,000x
 };
 
+enum class DrugTherapy : uint8_t {
+    None = 0,
+    TargetedTKI = 1,        // e.g. Osimertinib (EGFR)
+    ParpInhibitor = 2,      // e.g. Olaparib (BRCA1 synthetic lethality)
+    P53Reactivator = 3,     // e.g. APR-246 (TP53 conformation refolder)
+    KrasInhibitor = 4,      // e.g. Sotorasib (KRAS G12C)
+    CytotoxicChemo = 5      // Broad-spectrum anti-mitotic chemotherapy
+};
+
 // Alineación estricta a 64 bytes para línea de caché ARM64
 struct alignas(64) CellAgent {
     float x{0.0f};           // Coordenada X en la placa de Petri
@@ -58,7 +67,8 @@ struct alignas(64) CellAgent {
     uint16_t generation{0};       // Generación mitótica
     uint32_t cell_id{0};          // Identificador único
     uint32_t parent_id{0};        // ID progenitor
-    uint8_t pad1[4]{0};           // Relleno final para totalizar 64 bytes
+    uint8_t drug_resistant{0};    // 1 si adquirió resistencia secundaria al fármaco
+    uint8_t pad1[3]{0};           // Relleno final para totalizar exactamente 64 bytes
 };
 static_assert(sizeof(CellAgent) == 64, "CellAgent must be exactly 64 bytes");
 
@@ -76,6 +86,11 @@ struct PopulationMetrics {
     bool dox_active{false};          // Pulso de doxiciclina / Yamanaka activo
     bool crispr_applied{false};      // Edición génica administrada
     bool uv_insult_active{false};    // Estrés por radiación genotóxica
+    DrugTherapy active_drug{DrugTherapy::None};
+    std::string active_drug_name{"None (Vehicle Control)"};
+    float drug_dose_uM{0.0f};
+    float tumor_regression_percent{0.0f};
+    size_t drug_resistant_cells{0};
     TimeWarpScale time_warp{TimeWarpScale::Seconds};
     double time_multiplier{1.0};
     double simulated_seconds{0.0};
@@ -109,6 +124,14 @@ public:
     void trigger_uv_damage();
     void adjust_population(int delta);
 
+    // Controles farmacológicos in-silico
+    void administer_drug(DrugTherapy drug, float dose_uM = 1.0f);
+    void washout_drugs();
+    DrugTherapy get_active_drug() const { return active_drug_; }
+    const std::string& get_active_drug_name() const { return active_drug_name_; }
+    float get_drug_concentration() const { return drug_dose_uM_; }
+    float get_tumor_regression_percent() const { return metrics_.tumor_regression_percent; }
+
     const std::vector<CellAgent>& get_cells() const { return cells_; }
     const PopulationMetrics& get_metrics() const { return metrics_; }
     float get_dish_radius() const { return dish_radius_; }
@@ -126,6 +149,12 @@ private:
     bool crispr_applied_{false};     // Si se corrigió TP53
     bool uv_insult_active_{false};   // Daño inducido en ADN
     float uv_timer_{0.0f};
+
+    // Farmacodinámica
+    DrugTherapy active_drug_{DrugTherapy::None};
+    std::string active_drug_name_{"None (Vehicle Control)"};
+    float drug_dose_uM_{0.0f};
+    float initial_transformed_baseline_{0.0f};
 
     TimeWarpScale time_warp_{TimeWarpScale::Seconds};
     double simulated_seconds_{0.0};

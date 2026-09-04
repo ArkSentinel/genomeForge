@@ -1,0 +1,165 @@
+{
+  "report_type": "MOLECULAR_TUMOR_BOARD_SUMMARY",
+  "timestamp": "2026-09-04 13:34:48",
+  "sample_id": "PATIENT_ONCOLOGY_SAMPLE",
+  "reference_genome": "GRCh38",
+  "vcf_source": "data/sample_patient_oncology.vcf",
+  "genomics": {
+    "total_variants": 8,
+    "pathogenic_drivers": 8,
+    "yamanaka_collisions": 2,
+    "tmb_mut_per_mb": 15.00,
+    "high_tmb": true,
+    "r_score": 0.5131,
+    "p53_integrity": 0.1000
+  },
+  "actionable_biomarkers": [
+    {
+      "gene": "EGFR",
+      "variant": "p.L858R (Exon 21 activating)",
+      "position": 55181378,
+      "is_resistance": false
+    },
+    {
+      "gene": "BRCA1",
+      "variant": "p.C61G (RING domain missense) / Deficient HR",
+      "position": 43071077,
+      "is_resistance": false
+    },
+    {
+      "gene": "TP53",
+      "variant": "p.R175H (Conformational hotspot mutation)",
+      "position": 7675088,
+      "is_resistance": false
+    },
+    {
+      "gene": "KRAS",
+      "variant": "p.G12C (Switch-II pocket oncogenic hotspot)",
+      "position": 25225600,
+      "is_resistance": false
+    },
+    {
+      "gene": "BRAF",
+      "variant": "p.V600E (Kinase domain transactivation)",
+      "position": 140753336,
+      "is_resistance": false
+    },
+    {
+      "gene": "PTEN",
+      "variant": "Loss-of-Function Inactivating Alteration",
+      "position": 87864000,
+      "is_resistance": false
+    },
+    {
+      "gene": "PIK3CA",
+      "variant": "p.E545K / H1047R (Helical/Kinase domain)",
+      "position": 179218300,
+      "is_resistance": false
+    },
+    {
+      "gene": "ERBB2",
+      "variant": "Amplification / Extracellular Domain Variant",
+      "position": 39724200,
+      "is_resistance": false
+    }
+  ],
+  "recommended_therapies": [
+    {
+      "drug_name": "Osimertinib",
+      "drug_class": "3rd-Gen Irreversible EGFR TKI",
+      "target": "EGFR",
+      "evidence_level": "Level 1 (FDA/EMA Approved)",
+      "efficacy": 0.92
+    },
+    {
+      "drug_name": "Gefitinib",
+      "drug_class": "1st-Gen Reversible EGFR TKI",
+      "target": "EGFR",
+      "evidence_level": "Level 2 (NCCN Guidelines)",
+      "efficacy": 0.78
+    },
+    {
+      "drug_name": "Olaparib",
+      "drug_class": "PARP1/2 Inhibitor (Synthetic Lethality)",
+      "target": "BRCA1",
+      "evidence_level": "Level 1 (FDA/EMA Approved)",
+      "efficacy": 0.88
+    },
+    {
+      "drug_name": "Talazoparib",
+      "drug_class": "Potent PARP Trapping Inhibitor",
+      "target": "BRCA1",
+      "evidence_level": "Level 1 (FDA/EMA Approved)",
+      "efficacy": 0.86
+    },
+    {
+      "drug_name": "APR-246 (Eprenetapopt)",
+      "drug_class": "Conformational p53 Reactivator",
+      "target": "TP53",
+      "evidence_level": "Level 3 (Phase II/III Trials)",
+      "efficacy": 0.75
+    },
+    {
+      "drug_name": "CRISPR-Cas9 HDR Gene Rescue",
+      "drug_class": "Precision Exon Homology-Directed Repair",
+      "target": "TP53",
+      "evidence_level": "Level 4 (In-Silico / Preclinical)",
+      "efficacy": 0.96
+    },
+    {
+      "drug_name": "Sotorasib (AMG 510)",
+      "drug_class": "Covalent KRAS(G12C) Inhibitor",
+      "target": "KRAS",
+      "evidence_level": "Level 1 (FDA/EMA Approved)",
+      "efficacy": 0.84
+    },
+    {
+      "drug_name": "Adagrasib (MRTX849)",
+      "drug_class": "Optimized KRAS(G12C) Inhibitor",
+      "target": "KRAS",
+      "evidence_level": "Level 1 (FDA/EMA Approved)",
+      "efficacy": 0.82
+    },
+    {
+      "drug_name": "Dabrafenib + Trametinib",
+      "drug_class": "Dual BRAF/MEK Targeted Regimen",
+      "target": "BRAF",
+      "evidence_level": "Level 1 (FDA/EMA Approved)",
+      "efficacy": 0.90
+    },
+    {
+      "drug_name": "Everolimus",
+      "drug_class": "mTORC1 Allosteric Inhibitor",
+      "target": "PTEN",
+      "evidence_level": "Level 2 (NCCN Guidelines)",
+      "efficacy": 0.72
+    },
+    {
+      "drug_name": "Alpelisib",
+      "drug_class": "PI3K-alpha Selective Inhibitor",
+      "target": "PIK3CA",
+      "evidence_level": "Level 1 (FDA/EMA Approved)",
+      "efficacy": 0.80
+    },
+    {
+      "drug_name": "Trastuzumab Deruxtecan (T-DXd)",
+      "drug_class": "HER2-Directed Antibody-Drug Conjugate",
+      "target": "ERBB2",
+      "evidence_level": "Level 1 (FDA/EMA Approved)",
+      "efficacy": 0.94
+    },
+    {
+      "drug_name": "Pembrolizumab",
+      "drug_class": "Anti-PD-1 Monoclonal Antibody (Immunotherapy)",
+      "target": "TMB_HIGH",
+      "evidence_level": "Level 1 (FDA/EMA Approved)",
+      "efficacy": 0.85
+    }
+  ],
+  "digital_twin_pharmacodynamics": {
+    "active_drug": "None (Vehicle Control)",
+    "dose_uM": 0.00,
+    "tumor_regression_percent": 0.0,
+    "resistant_cells_count": 0
+  }
+}

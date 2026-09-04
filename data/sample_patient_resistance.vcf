@@ -1,0 +1,16 @@
+##fileformat=VCFv4.2
+##fileDate=20260904
+##source=GenomeForge_EGFR_Resistance_Panel
+##reference=GRCh38
+##INFO=<ID=GENE,Number=1,Type=String,Description="Target Gene Symbol">
+##INFO=<ID=IMPACT,Number=1,Type=String,Description="Predicted functional consequence">
+##INFO=<ID=CLNSIG,Number=1,Type=String,Description="ClinVar clinical significance">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Global allele frequency">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Sequencing read depth">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Filtered read depth">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype quality score">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	PATIENT_RESIST_002
+chr7	55181378	rs121434568	T	G	999	PASS	GENE=EGFR;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.0002;DP=220	GT:DP:GQ	0/1:220:99
+chr7	55181300	rs121434569	C	T	980	PASS	GENE=EGFR;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.00005;DP=190	GT:DP:GQ	0/1:190:99
+chr17	7675088	rs28934578	C	T	999	PASS	GENE=TP53;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.0003;DP=210	GT:DP:GQ	0/1:210:99

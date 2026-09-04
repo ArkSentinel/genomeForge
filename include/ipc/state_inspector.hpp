@@ -28,7 +28,9 @@ public:
         size_t sim_speed_multiplier = 1,
         float petri_zoom = 1.0f,
         float petri_pan_x = 0.0f,
-        float petri_pan_y = 0.0f
+        float petri_pan_y = 0.0f,
+        size_t actionable_biomarkers_count = 0,
+        size_t fda_approved_drugs_count = 0
     );
 
     // Lee el archivo de estado en vivo e imprime un reporte estructurado de diagnóstico en stdout

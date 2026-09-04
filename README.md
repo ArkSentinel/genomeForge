@@ -1,13 +1,13 @@
 # GenomeForge-TUI
 
-> Herramienta bioinformática interactiva en terminal (TUI) desarrollada en C++20 con aceleración de hardware para Apple Silicon (M1-M4: AMX/vDSP en CPU y Metal Shading Language en GPU). Integra simulación de redes de regulación génica (MoE), dinámica de reprogramación celular continua (factores de Yamanaka OSKM), evaluación de riesgo oncogénico (R-Score), diseño de intervenciones genómicas CRISPR-Cas9 y un Gemelo Digital Celular espacial (Whole-Cell Spatial Digital Twin) con controlador temporal multi-escala.
+> Herramienta bioinformática interactiva en terminal (TUI) desarrollada en C++20 con aceleración de hardware para Apple Silicon (M1-M4: AMX/vDSP en CPU y Metal Shading Language en GPU). Integra simulación de redes de regulación génica (MoE), dinámica de reprogramación celular continua (factores de Yamanaka OSKM), evaluación de riesgo oncogénico (R-Score), diseño de intervenciones genómicas CRISPR-Cas9, Gemelo Digital Celular espacial (Whole-Cell Spatial Digital Twin) y una plataforma clínica de Oncología de Precisión y Farmacogenómica con generación de reportes de Comité Molecular de Tumores (MTB).
 
 ---
 
 ## Tabla de Contenidos
 * [1. Visión General del Sistema](#1-visión-general-del-sistema)
 * [2. Arquitectura de Hardware Apple Silicon](#2-arquitectura-de-hardware-apple-silicon)
-* [3. Navegación y Procesos del Cyber-HUD (7 Pestañas)](#3-navegación-y-procesos-del-cyber-hud-7-pestañas)
+* [3. Navegación y Procesos del Cyber-HUD (8 Pestañas)](#3-navegación-y-procesos-del-cyber-hud-8-pestañas)
 * [4. Fundamentos Matemáticos y Modelado Biológico](#4-fundamentos-matemáticos-y-modelado-biológico)
   * [Dinámica No Lineal de Yamanaka (ODE Solver RK4)](#dinámica-no-lineal-de-yamanaka-ode-solver-rk4)
   * [Métrica de Riesgo Oncogénico (R-Score)](#métrica-de-riesgo-oncogénico-r-score)
@@ -17,19 +17,23 @@
   * [Modelo Basado en Agentes (ABM)](#modelo-basado-en-agentes-abm)
   * [Controlador Temporal Multi-Escala (Time Warp)](#controlador-temporal-multi-escala-time-warp)
   * [Visualización Citomorfológica en Canvas Braille](#visualización-citomorfológica-en-canvas-braille)
-* [6. Interoperabilidad: Modo Headless, Inspector IA y Datasets CSV](#6-interoperabilidad-modo-headless-inspector-ia-y-datasets-csv)
-* [7. Integración Multi-Locus con el Proyecto 1000 Genomas](#7-integración-multi-locus-con-el-proyecto-1000-genomas)
-* [8. Requisitos, Compilación y Referencia CLI](#8-requisitos-compilación-y-referencia-cli)
-* [9. Tabla de Atajos de Teclado](#9-tabla-de-atajos-de-teclado)
-* [10. Documentación y Referencias Técnicas](#10-documentación-y-referencias-técnicas)
+* [6. Motor de Oncología de Precisión y Farmacogenómica](#6-motor-de-oncología-de-precisión-y-farmacogenómica)
+  * [Niveles de Evidencia Clínica y Base Curada](#niveles-de-evidencia-clínica-y-base-curada)
+  * [Farmacodinamia In-Silico en el Gemelo Digital](#farmacodinamia-in-silico-en-el-gemelo-digital)
+  * [Reportes Clínicos de Comité Molecular de Tumores (MTB)](#reportes-clínicos-de-comité-molecular-de-tumores-mtb)
+* [7. Interoperabilidad: Modo Headless, Inspector IA, Datasets CSV y Reportes](#7-interoperabilidad-modo-headless-inspector-ia-datasets-csv-y-reportes)
+* [8. Integración Multi-Locus con el Proyecto 1000 Genomas (12 Loci Clínicos)](#8-integración-multi-locus-con-el-proyecto-1000-genomas-12-loci-clínicos)
+* [9. Requisitos, Compilación y Referencia CLI](#9-requisitos-compilación-y-referencia-cli)
+* [10. Tabla de Atajos de Teclado](#10-tabla-de-atajos-de-teclado)
+* [11. Documentación y Referencias Técnicas](#11-documentación-y-referencias-técnicas)
 
 ---
 
 ## 1. Visión General del Sistema
 
-GenomeForge-TUI es una estación de trabajo computacional para medicina de precisión y biología sintética ejecutada íntegramente en la terminal. Su propósito es simular el impacto biológico de la reprogramación celular mediante factores de Yamanaka (*Oct4*, *Sox2*, *Klf4*, *c-Myc* / OSKM) sobre genomas portadores de variantes patogénicas en supresores tumorales críticos (*TP53*, *CDKN2A*, *PTEN*), cuantificar el riesgo de escape neoplásico y permitir el diseño automatizado de rescates genómicos mediante CRISPR-Cas9 in-silico.
+GenomeForge-TUI es una estación de trabajo computacional para medicina de precisión y biología sintética ejecutada íntegramente en la terminal. Su propósito es simular el impacto biológico de la reprogramación celular mediante factores de Yamanaka (*Oct4*, *Sox2*, *Klf4*, *c-Myc* / OSKM) sobre genomas portadores de variantes patogénicas en supresores tumorales y proto-oncogenes críticos (*TP53*, *CDKN2A*, *PTEN*, *KRAS*, *BRAF*, *PIK3CA*, *ERBB2*, *EGFR*, *BRCA1*), cuantificar el riesgo de escape neoplásico, proyectar la respuesta terapéutica a fármacos oncológicos dirigidos (TKIs, inhibidores PARP, reactivadores de p53, anticuerpos conjugados e inmunoterapias) y permitir el rescate genómico in-silico mediante edición CRISPR-Cas9 por recombinación homóloga (HDR).
 
-El sistema fusiona bioinformática estructural, física de partículas intercelulares, cinéticas bioquímicas de ecuaciones diferenciales continuas y computación de alto rendimiento aprovechando la arquitectura de memoria unificada (UMA) de los chips de Apple.
+El sistema fusiona bioinformática estructural, oncología traslacional, física de partículas intercelulares, cinéticas bioquímicas de ecuaciones diferenciales continuas y computación de alto rendimiento aprovechando la arquitectura de memoria unificada (UMA) de los chips de Apple.
 
 ---
 
@@ -41,7 +45,7 @@ GenomeForge-TUI está diseñado específicamente para exprimir las capacidades a
 +-----------------------------------------------------------------------------------------------+
 |                                    GenomeForge-TUI Core (C++20)                              |
 |           < 1: DASHBOARD > | < 2: VCF > | < 3: OSKM > | < 4: MoE > | < 5: CRISPR >           |
-|                               < 6: SYSTEM > | < 7: DIGITAL TWIN >                             |
+|                     < 6: SYSTEM > | < 7: DIGITAL TWIN > | < 8: ONCO THERAPY >                 |
 +-----------------------------------------------┬-----------------------------------------------+
                                                 │
          +--------------------------------------+--------------------------------------+
@@ -77,9 +81,9 @@ GenomeForge-TUI está diseñado específicamente para exprimir las capacidades a
 
 ---
 
-## 3. Navegación y Procesos del Cyber-HUD (7 Pestañas)
+## 3. Navegación y Procesos del Cyber-HUD (8 Pestañas)
 
-La interfaz gráfica en terminal (construida con FTXUI en C++20) sigue una estética de Cyber-HUD científico, organizada en 7 pestañas a pantalla completa:
+La interfaz gráfica en terminal (construida con FTXUI en C++20) sigue una estética de Cyber-HUD científico, organizada en 8 pestañas a pantalla completa:
 
 * **< 1: DASHBOARD >:**
   * Resumen clínico del paciente, diagnóstico genómico global, indicador holográfico del R-Score poblacional, confluencia del cultivo, estado de los inductores biológicos (Doxiciclina / CRISPR) y consola de eventos.
@@ -94,7 +98,9 @@ La interfaz gráfica en terminal (construida con FTXUI en C++20) sigue una esté
 * **< 6: SYSTEM & LOGS >:**
   * Diagnóstico en vivo de la plataforma Apple Silicon. Monitoreo individualizado por núcleo de CPU (P-Cores vs E-Cores), deslose de memoria unificada (activa, cableada, libre) y registro de auditoría del sistema.
 * **< 7: DIGITAL TWIN >:**
-  * Placa de Petri virtual en 2D interactiva. Renderizado citomorfológico de alta fidelidad en sub-píxeles Braille, censo celular en vivo, dinámica clonal, controlador de velocidad temporal multi-escala (*Time Warp*) y controles de inducción / rescate.
+  * Placa de Petri virtual en 2D interactiva. Renderizado citomorfológico de alta fidelidad en sub-píxeles Braille, censo celular en vivo, dinámica clonal, controlador de velocidad temporal multi-escala (*Time Warp*), panel de farmacodinamia activa y controles de inducción / rescate.
+* **< 8: ONCO THERAPY >:**
+  * Plataforma de Oncología de Precisión y Farmacogenómica. Matching automatizado de alteraciones patogénicas frente a fármacos dirigidos aprobados por la FDA y guías NCCN. Monitoreo de carga mutacional tumoral (TMB) para elegibilidad de inmunoterapia anti-PD-1, detección de mutaciones de resistencia secundaria (*EGFR* T790M contra Gefitinib), panel de control de dosificación farmacológica in-silico y exportador directo del reporte de Comité Molecular de Tumores (`[O]`).
 
 ---
 
@@ -311,32 +317,154 @@ Al presionar la tecla `[X]` en la TUI o activar `--export-csv`, se generan en la
 
 ---
 
-## 7. Integración Multi-Locus con el Proyecto 1000 Genomas
+## 6. Motor de Oncología de Precisión y Farmacogenómica
 
-Para validar las simulaciones frente a datos genómicos reales de población humana, GenomeForge-TUI incorpora un catálogo multi-locus compatible con el **1000 Genomes Project** (GRCh38 / hg38):
+GenomeForge-TUI incorpora un motor de oncología de precisión (`ActionabilityEngine`) y farmacodinamia computacional que traduce variantes genómicas en prescripciones terapéuticas dirigidas y pronósticos de respuesta celular.
 
-| Locus | Coordenada Genómica (GRCh38) | Relevancia Biológica y Clínica |
+```text
++-----------------------------------------------------------------------------------------------+
+|                       ONCOLOGY ACTIONABILITY & PHARMACOGENOMICS PIPELINE                      |
+|                                                                                               |
+|  [VCF Patient Data] ──> [LocusCatalog 12 Genes] ──> [Oncogenic Driver Matcher]                |
+|                                                               │                               |
+|                                                               v                               |
+|                     ┌──────────────────────────────────────────────────┐                      |
+|                     │     ActionabilityEngine Knowledge Base (FDA/NCCN)│                      |
+|                     │  - Level 1: FDA Approved Targeted Therapies      │                      |
+|                     │  - Level 2: NCCN Guideline Standards of Care     │                      |
+|                     │  - Level 3: Phase II/III Clinical Trials         │                      |
+|                     │  - Level 4: Preclinical CRISPR-Cas9 HDR Rescue   │                      |
+|                     │  - Resistance: Secondary Gatekeeper Markers      │                      |
+|                     └────────────────────────┬─────────────────────────┘                      |
+|                                              │                                                |
+|                      ┌───────────────────────┴───────────────────────┐                        |
+|                      v                                               v                        |
+|        ┌───────────────────────────┐                   ┌───────────────────────────┐          |
+|        │  In-Silico Pharmacodynamics│                   │ Molecular Tumor Board (MTB)│         |
+|        │  - Drug Inoculation       │                   │ - Markdown Clinical Report│          |
+|        │  - Tumor Regression Rate  │                   │ - JSON Telemetry Interop  │          |
+|        │  - Clonal Resistance Emergence│               │ - CRISPR HDR Rescue Plan  │          |
+|        └───────────────────────────┘                   └───────────────────────────┘          |
++-----------------------------------------------------------------------------------------------+
+```
+
+### Niveles de Evidencia Clínica y Base Curada
+
+El motor clasifica cada recomendación bajo una taxonomía de evidencia estandarizada:
+
+* **Nivel 1 (Aprobado FDA / EMA):**
+  * **Osimertinib:** Inhibidor irreversible de tirosina quinasa (TKI) de 3ª generación para mutaciones sensibilizantes de *EGFR* (p.L858R, deleciones del exón 19).
+  * **Olaparib / Talazoparib:** Inhibidores de PARP1/2 por letalidad sintética en células con deficiencia de recombinación homóloga por mutaciones patogénicas en *BRCA1* o *BRCA2*.
+  * **Sotorasib / Adagrasib:** Inhibidores covalentes del bolsillo switch-II de *KRAS* p.G12C en cáncer de pulmón no microcítico.
+  * **Dabrafenib + Trametinib:** Régimen dual de inhibición de cinasas sobre *BRAF* p.V600E y downstream *MEK1/2*.
+  * **Alpelisib:** Inhibidor selectivo de la subunidad catalítica p110-alfa de PI3K para mutaciones activadoras en *PIK3CA*.
+  * **Trastuzumab Deruxtecan (T-DXd):** Anticuerpo conjugado con carga de inhibidor de topoisomerasa I dirigido contra sobreexpresión/amplificación de *ERBB2* (HER2).
+  * **Pembrolizumab:** Inmunoterapia anti-PD-1 activada automáticamente ante alta carga mutacional tumoral ($\text{TMB} \ge 10\text{ mut/Mb}$ o $\text{Drivers} \ge 4$).
+* **Nivel 2 (Guías NCCN / Estándar de Cuidado):**
+  * **Gefitinib:** TKI reversible de 1ª generación para *EGFR* (contraindicado formalmente en presencia de resistencia secundaria).
+  * **Everolimus:** Inhibidor alostérico de mTORC1 en tumores con pérdida de función del supresor *PTEN*.
+* **Nivel 3 (Ensayos Clínicos Fase II/III):**
+  * **APR-246 (Eprenetapopt):** Reactivador conformacional de p53 que se une covalentemente a cisteínas del dominio de unión a ADN en mutaciones hotspot conformacionales (*TP53* p.R175H).
+* **Nivel 4 (Preclínico / In-Silico):**
+  * **CRISPR-Cas9 HDR Gene Rescue:** Edición genética de precisión mediante rotura de doble cadena adyacente y plantilla donante de hebra simple (ssODN) para corregir el codón mutado.
+* **Alertas de Resistencia Farmacogenómica:**
+  * Detección específica de la mutación *gatekeeper* *EGFR* p.T790M. El sistema emite una alerta roja inmediata, contraindica el uso de Gefitinib o inhibidores reversibles y prioriza Osimertinib.
+
+### Farmacodinamia In-Silico en el Gemelo Digital
+
+La pestaña `< 8: ONCO THERAPY >` y los controles de teclado permiten inocular fármacos en el gemelo digital celular (`CellTwinSimulator`):
+
+* **Cinéticas de Lisis Selectiva:** Los fármacos activos ejercen una presión de eliminación dependiente de la dosis sobre clones neoplásicos transformados.
+* **Letalidad Sintética:** Las células portadoras de alelos mutados en *BRCA1* experimentan colapso replicativo letal ante la presencia de inhibidores PARP.
+* **Restauración de Checkpoints:** La inoculación de APR-246 restaura gradualmente los niveles de $p_{53}$, reactivando la apoptosis funcional en clones desregulados.
+* **Emergencia Estocástica de Resistencia Clonal:** Cada división mitótica bajo presión selectiva tiene una probabilidad del 2.5% de generar un clon resistente (`drug_resistant = true`), visualizado en la placa de Petri y cuantificado en la métrica de regresión tumoral.
+* **Lavado de Fármacos (`[W]`):** Retira los compuestos activos y restaura la cinética basal del cultivo.
+
+### Reportes Clínicos de Comité Molecular de Tumores (MTB)
+
+Al pulsar la tecla `[O]` en la TUI o mediante el parámetro CLI `--report-onco <ruta.md>`, GenomeForge genera dos artefactos complementarios:
+
+1. **Informe Clínico en Markdown (`.md`):**
+   * Metadatos del paciente y versión del motor de referencia GRCh38.
+   * Diagnóstico genómico resumido (TMB, R-Score, estado de *TP53*).
+   * Tabla de alteraciones moleculares conductoras con coordenadas y codones.
+   * Prescripción de terapias dirigidas clasificadas por nivel de evidencia FDA/NCCN.
+   * Advertencias farmacogenómicas de resistencia y protocolos de monitoreo clonal.
+   * Plan de rescate genético por edición CRISPR-Cas9 HDR (guía protospacer 20 nt, PAM y molde ssODN).
+   * Pronóstico farmacodinámico proyectado por el Gemelo Digital.
+2. **Exportación Estructurada en JSON (`.json`):**
+   * Esquema JSON completo para interoperabilidad con agentes de IA, registros clínicos electrónicos (EHR) y pipelines NGS automatizados.
+
+---
+
+## 7. Interoperabilidad: Modo Headless, Inspector IA, Datasets CSV y Reportes
+
+GenomeForge-TUI está diseñado para integrarse de forma nativa en flujos de trabajo autónomos y pipelines de bioinformática:
+
+### 1. Ejecución Headless para Pipelines Automatizados
+```bash
+./build/genome_forge --vcf data/sample_patient_oncology.vcf --headless --ticks 50 --export-csv --report-onco data/molecular_tumor_board_report.md
+# o utilizando el atajo del Makefile:
+make test-onco
+```
+
+### 2. Inspector de Estado en Vivo (IPC para Agentes IA)
+La aplicación serializa atómicamente su estado global en `data/live_state.json` cada 2 ticks de cómputo (utilizando escritura a archivo temporal `.tmp` y renombrado atómico para garantizar cero corrupciones por concurrencia).
+
+Cualquier agente IA o script de terminal puede inspeccionar el estado actual ejecutando:
+```bash
+make inspect
+# o directamente:
+./build/genome_forge --inspect data/live_state.json
+```
+
+El informe JSON proporciona:
+* Índices de pestaña y locus clínico activo (*TP53*, *CDKN2A*, *EGFR*, etc.).
+* Telemetría de hardware (chips M-Series, uso de CPU, RAM unificada).
+* Variables continuas del solver ODE ($P, S, I, p_{53}, p_{21}, R\text{-Score}$).
+* Estadísticas del Router MoE y latencia de aceleradores (vDSP / Metal GPU).
+* Candidatos CRISPR seleccionados y scoring de eficacia.
+* Censo biológico del gemelo digital (células por fenotipo, confluencia, índice mitótico, escala temporal activa).
+* Módulo `oncology_actionability` con fármacos activos, dosis en $\mu\text{M}$, tasa de regresión tumoral y clones resistentes.
+
+### 3. Exportador Científico a CSV
+Al presionar la tecla `[X]` en la TUI o activar `--export-csv`, se generan en la carpeta `data/`:
+1. `export_cell_census_<timestamp>.csv`: Confluencia, índice mitótico, recuento poblacional y R-Score medio en función del tiempo.
+2. `export_cell_agents_<timestamp>.csv`: Censo microscópico unicelular con coordenadas $(X, Y)$, velocidades $(V_x, V_y)$, fases del ciclo ($G_0, G_1, S, G_2, M$), fenotipo, estado de clivaje y nivel de $p_{53}$.
+3. `export_genomic_variants_<timestamp>.csv`: Catálogo de variantes del panel con alelos REF/ALT, profundidad $DP$, frecuencia $AF$ y scoring ClinVar.
+
+---
+
+## 8. Integración Multi-Locus con el Proyecto 1000 Genomas (12 Loci Clínicos)
+
+Para validar las simulaciones frente a datos genómicos reales de población humana y paneles de oncología de precisión, GenomeForge-TUI incorpora un catálogo multi-locus ampliado a 12 genes clínicos en GRCh38 / hg38:
+
+| Locus | Coordenada Genómica (GRCh38) | Relevancia Biológica y Farmacogenómica |
 | :--- | :--- | :--- |
-| **TP53** | Chr17: 7,668,402 - 7,687,550 | Guardián del genoma; colisión directa con Yamanaka OSKM. |
+| **TP53** | Chr17: 7,668,402 - 7,687,550 | Guardián del genoma; mutaciones hotspot (R175H) restaurables vía APR-246 y CRISPR. |
 | **CDKN2A** | Chr9: 21,967,751 - 21,995,300 | Barrera fisiológica de senescencia celular (p16INK4a / p14ARF). |
-| **PTEN** | Chr10: 87,862,566 - 87,971,930 | Fosfatasa supresora de proliferación vía señalización PI3K/AKT. |
+| **PTEN** | Chr10: 87,862,566 - 87,971,930 | Fosfatasa supresora de proliferación; pérdida diana de Everolimus (mTORC1). |
 | **MYC** | Chr8: 127,735,434 - 127,742,951 | Proto-oncogén y factor de reprogramación OSKM (c-Myc). |
-| **BRCA1** | Chr17: 43,044,295 - 43,125,483 | Reparación de roturas de doble hebra por recombinación homóloga. |
-| **EGFR** | Chr7: 55,019,017 - 55,211,628 | Receptor tirosina quinasa impulsor de proliferación celular. |
+| **BRCA1** | Chr17: 43,044,295 - 43,125,483 | Reparación de ADN por HR; diana de letalidad sintética con inhibidores PARP (Olaparib). |
+| **EGFR** | Chr7: 55,019,017 - 55,211,628 | Receptor tirosina quinasa diana de Osimertinib (L858R) y monitoreo de T790M. |
 | **POU5F1** | Chr6: 31,164,335 - 31,170,694 | Factor de transcripción maestro nuclear de pluripotencia (Oct4). |
 | **SOX2** | Chr3: 181,711,925 - 181,714,436 | Factor central del mantenimiento de células madre pluripotentes. |
+| **KRAS** | Chr12: 25,204,789 - 25,250,929 | GTPasa oncogénica; diana de inhibidores covalentes específicos G12C (Sotorasib, Adagrasib). |
+| **BRAF** | Chr7: 140,719,327 - 140,924,929 | Serina/treonina quinasa diana de terapia combinada Dabrafenib + Trametinib (V600E). |
+| **PIK3CA** | Chr3: 179,148,114 - 179,240,093 | Subunidad catalítica p110-alfa diana de Alpelisib en tumores con activación de PI3K. |
+| **ERBB2** | Chr17: 39,687,914 - 39,730,415 | Tirosina quinasa HER2 diana de anticuerpos conjugados (Trastuzumab Deruxtecan). |
 
 * **Mapeo Inteligente por Coordenadas Genómicas (GRCh38):** Los archivos VCF brutos del consorcio 1000 Genomes no contienen etiquetas informativas `GENE=` en la columna `INFO`. `VcfParser` y `LocusCatalog` resuelven la pertenencia a los loci clínicos mediante resolución de intervalos por coordenadas cromosómicas en GRCh38.
 * **Clasificación Poblacional y Controles Sanos ($AF \ge 0.01$):** Los donantes del 1000 Genomes Project son controles poblacionales sanos. El motor bioinformático clasifica automáticamente las variantes con frecuencia alélica común ($AF \ge 0.01$) sin anotación clínica de riesgo como polimorfismos naturales benignos (`[+] STABLE / WILD-TYPE`), resultando en $0$ colisiones de Yamanaka y un R-Score basal verde (< 0.10).
 * **Conmutador de Muestras (`[M]`):** Permite alternar en tiempo real entre:
-  * **Modo Paciente Clínico (`data/sample_patient.vcf`):** Perfil con mutaciones conductoras (*TP53* p.R175H, *CDKN2A*) para evaluar riesgo oncogénico alto y probar rescates CRISPR HDR.
+  * **Modo Paciente Clínico Oncológico (`data/sample_patient_oncology.vcf`):** Panel multiobjetivo con variantes patogénicas en *EGFR*, *BRCA1*, *KRAS*, *BRAF*, *PTEN*, *PIK3CA*, *ERBB2* y *TP53* para evaluar terapias dirigidas.
+  * **Modo Paciente Resistencia TKI (`data/sample_patient_resistance.vcf`):** Perfil con mutación sensibilizante *EGFR* L858R más mutación *gatekeeper* T790M para probar contraindicaciones y cambio a Osimertinib.
   * **Modo 1000 Genomas Control Sano (`data/1000genomes_healthy_reference.vcf`):** Perfil de control poblacional sano (`HG00096`) con polimorfismos naturales benignos y estabilidad genómica garantizada.
-* **Conmutación en Caliente de Locus (`[L]`):** Permite ciclar en tiempo real entre los 8 genes clínicos en la pestaña `[2] VCF EXPLORER`, reconfigurando automáticamente el contexto mutacional, el solver ODE y el diseño de guías CRISPR.
-* **Descargador de Slices Indexados:** El script `scripts/fetch_1000genomes_slice.sh` permite validar el bucket AWS S3 (`https://s3.amazonaws.com/1000genomes`) y generar slices indexados con polimorfismos poblacionales o paneles clínicos.
+* **Conmutación en Caliente de Locus (`[L]`):** Permite ciclar en tiempo real entre los 12 genes clínicos en la pestaña `[2] VCF EXPLORER`, reconfigurando automáticamente el contexto mutacional, el solver ODE y el diseño de guías CRISPR.
 
 ---
 
-## 8. Requisitos, Compilación y Referencia CLI
+## 9. Requisitos, Compilación y Referencia CLI
 
 ### Requisitos del Sistema
 * **Hardware:** Mac con procesador Apple Silicon (M1, M2, M3, M4 o variantes Pro/Max/Ultra).
@@ -349,6 +477,15 @@ Para validar las simulaciones frente a datos genómicos reales de población hum
 ```bash
 # Compilar binario optimizado (-O3) para Apple Silicon ARM64
 make build
+
+# Generar reporte clínico de Comité Molecular de Tumores (MTB)
+make report
+
+# Ejecutar suite de pruebas oncológicas y resistencia en modo headless
+make test-onco
+
+# Inspeccionar telemetría viva en formato JSON
+make inspect
 
 # Limpiar artefactos de compilación
 make clean
@@ -366,17 +503,18 @@ Opciones Principales:
   --snapshot <path>      Ruta del archivo JSON de telemetría (default: data/live_state.json)
   --inspect [path]       Inspecciona el estado de la TUI en vivo y muestra reporte HUD
   --export-csv           Fuerza la exportación de datasets CSV al finalizar
+  --report-onco [path]   Genera el reporte clínico de Comité Molecular de Tumores (.md y .json)
   --help, -h             Muestra la ayuda detallada del sistema
 ```
 
 ---
 
-## 9. Tabla de Atajos de Teclado
+## 10. Tabla de Atajos de Teclado
 
 | Tecla / Atajo | Función y Efecto Biológico |
 | :---: | :--- |
-| **`1` .. `7`** | Salto directo a cualquiera de las 7 pestañas del Cyber-HUD. |
-| **`Tab`** | Ciclar secuencialmente a la siguiente pestaña. |
+| **`1` .. `8`** | Salto directo a cualquiera de las 8 pestañas del Cyber-HUD (incluyendo Onco Therapy). |
+| **`Tab`** | Ciclar secuencialmente a la siguiente pestaña (módulo 8). |
 | **`<` / `,`** | **Disminuir Velocidad Real:** Reduce los sub-pasos del motor físico/ODE ($32\times \to 1\times$, $640\text{ Hz} \to 20\text{ Hz}$). |
 | **`>` / `.`** | **Aumentar Velocidad Real:** Acelera los sub-pasos del motor físico/ODE ($1\times \to 32\times$, $20\text{ Hz} \to 640\text{ Hz}$). |
 | **`Z`** | **Zoom In Microscopio:** Incrementa el aumento óptico de la placa de Petri ($1.0\times \to 8.0\times$). |
@@ -385,9 +523,14 @@ Opciones Principales:
 | **`↑ ↓ ← →` / `W A S`** | **Pan Óptico (Tab 7):** Paneo espacial bidireccional sobre las células de la placa de Petri. |
 | **`[`** | **Frenar Time Warp:** Reduce la escala temporal biológica (ej. Horas -> Minutos -> Segundos). |
 | **`]`** | **Acelerar Time Warp:** Incrementa la escala temporal biológica (ej. Días -> Semanas -> Años -> Décadas). |
+| **`O`** | **Reporte MTB:** Exporta el informe clínico de Comité Molecular de Tumores a Markdown y JSON. |
+| **`T`** | **Inocular TKI:** Administra Osimertinib (1.50 uM) contra clones oncogénicos dirigidos por EGFR. |
+| **`P`** | **Inocular PARP:** Administra Olaparib (1.50 uM) por letalidad sintética en mutaciones de BRCA1. |
+| **`K`** | **Inocular p53:** Administra APR-246 (1.50 uM) para replegamiento conformacional de p53 mutante. |
+| **`W`** | **Washout Farmacológico:** Suspende y lava cualquier terapia activa (control vehículo 0.0 uM). |
 | **`X`** | **Exportar Datasets CSV:** Guarda censo, células individuales y variantes en `data/`. |
-| **`L`** | **Conmutar Locus 1000G:** Alterna entre *TP53*, *CDKN2A*, *PTEN*, *MYC*, *BRCA1*, *EGFR*, *OCT4*, *SOX2*. |
-| **`M`** | **Conmutar Muestra:** Alterna entre Paciente Clínico (mutado) y Control Sano 1000 Genomas (HG00096). |
+| **`L`** | **Conmutar Locus 1000G:** Alterna entre los 12 loci clínicos (*TP53*, *CDKN2A*, *PTEN*, *MYC*, *BRCA1*, *EGFR*, *OCT4*, *SOX2*, *KRAS*, *BRAF*, *PIK3CA*, *ERBB2*). |
+| **`M`** | **Conmutar Muestra:** Alterna entre Muestra Oncológica, Control de Resistencia y Control Sano 1000 Genomas. |
 | **`D`** | **Doxiciclina (OSKM):** Inyecta o suspende el inductor de reprogramación en el cultivo celular. |
 | **`C`** | **CRISPR In-Situ:** Administra terapia génica en la placa de Petri para corregir mutaciones de *TP53*. |
 | **`U`** | **Estrés Genotóxico:** Dispara un pulso de radiación UV para poner a prueba los puntos de control. |
@@ -400,9 +543,10 @@ Opciones Principales:
 
 ---
 
-## 10. Documentación y Referencias Técnicas
+## 11. Documentación y Referencias Técnicas
 
 * [`docs/SPECS.md`](docs/SPECS.md): Especificación técnica formal, structs alineados a caché ARM64, derivaciones matemáticas de ODEs, kernels de Metal y arquitectura del sistema.
 * [`docs/BITACORA.md`](docs/BITACORA.md): Bitácora cronológica viva de ingeniería con todos los registros de desarrollo (*devlog*), decisiones técnicas y benchmarks de rendimiento.
+
 
 

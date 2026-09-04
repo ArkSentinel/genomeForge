@@ -255,10 +255,14 @@ El sistema soporta la ingesta y benchmarking frente a conjuntos de variantes aut
   * `CDKN2A` (Chr9: 21,967,751 - 21,995,300 bp) — Barrera de senescencia celular.
   * `PTEN` (Chr10: 87,862,566 - 87,971,930 bp) — Supresor tumoral vía PI3K/AKT.
   * `MYC` (Chr8: 127,735,434 - 127,742,951 bp) — Proto-oncogén y factor de reprogramación OSKM.
-  * `BRCA1` (Chr17: 43,044,295 - 43,125,483 bp) — Reparación por recombinación homóloga.
+  * `BRCA1` (Chr17: 43,044,295 - 43,125,483 bp) — Reparación por recombinación homóloga (HR).
   * `EGFR` (Chr7: 55,019,017 - 55,211,628 bp) — Receptor tirosina quinasa de proliferación.
   * `POU5F1` / `OCT4` (Chr6: 31,164,335 - 31,170,694 bp) — Factor maestro de pluripotencia.
   * `SOX2` (Chr3: 181,711,925 - 181,714,436 bp) — Factor de transcripción stem cell.
+  * `KRAS` (Chr12: 25,204,789 - 25,250,929 bp) — GTPasa oncogénica diana de Sotorasib y Adagrasib.
+  * `BRAF` (Chr7: 140,719,327 - 140,924,929 bp) — Quinasa diana de Dabrafenib + Trametinib.
+  * `PIK3CA` (Chr3: 179,148,114 - 179,240,093 bp) — Subunidad catalítica p110-alfa diana de Alpelisib.
+  * `ERBB2` / `HER2` (Chr17: 39,687,914 - 39,730,415 bp) — Tirosina quinasa diana de Trastuzumab Deruxtecan.
 * **Script de Automatización:** `scripts/fetch_1000genomes_slice.sh`.
 
 ---
@@ -305,7 +309,7 @@ En lugar de puntos genéricos uniloculares, el renderizado sobre el `Canvas` de 
 
 ### Modo Headless y Scripting
 El binario soporta ejecución no interactiva para pipelines de integración continua, benchmarks y auditorías automatizadas:
-* `./genome_forge --headless --ticks <N> --snapshot <path> --export-csv`
+* `./genome_forge --headless --ticks <N> --snapshot <path> --export-csv --report-onco <path>`
 
 ### Inspector de Estado en Vivo (IPC / Asistentes IA)
 GenomeForge-TUI emite telemetría atómica estructurada en `data/live_state.json` (escritura en `.tmp` y reemplazo atómico para evitar condiciones de carrera). El comando `./genome_forge --inspect [path]` o la lectura directa del JSON permite a los asistentes de inteligencia artificial monitorear en tiempo real:
@@ -313,10 +317,39 @@ GenomeForge-TUI emite telemetría atómica estructurada en `data/live_state.json
 * Concentraciones de factores OSKM y variables de estado del solver ODE ($P, S, I, p_{53}, p_{21}, R\text{-Score}$).
 * Tiempos de latencia y volumen de inferencias procesadas por Accelerate (vDSP) y Metal GPU.
 * Recuento celular granular por fenotipo y confluencia de la placa de Petri.
+* Telemetría de oncología accionable (`oncology_actionability`) con fármacos activos, dosis en $\mu\text{M}$ y clones resistentes.
 
 ### Exportación Científica a CSV
 El módulo `CsvExporter` genera datasets estructurados en `data/` bajo demanda (`[X]` en la TUI o `--export-csv` en CLI):
 1. `export_cell_census_<ts>.csv`: Evolución temporal de poblaciones y métricas de reprogramación.
 2. `export_cell_agents_<ts>.csv`: Ficha unicelular exhaustiva de los agentes vivos (linaje, fase, fenotipo, cinemática, morfología).
 3. `export_genomic_variants_<ts>.csv`: Catálogo de variantes del paciente o cohorte con anotaciones clínicas.
+
+---
+
+## 9. Motor de Oncología de Precisión y Farmacogenómica
+
+### Arquitectura de Accionabilidad Terapéutica
+El módulo `genome::onco::ActionabilityEngine` mapea alteraciones genómicas detectadas a terapias oncológicas dirigidas:
+* **Taxonomía de Evidencia:**
+  * `Level1_FDA_Approved`: Fármacos con aprobación regulatoria formal (Osimertinib, Olaparib, Sotorasib, Dabrafenib+Trametinib, Alpelisib, T-DXd, Pembrolizumab).
+  * `Level2_StandardOfCare`: Guías de práctica clínica NCCN (Gefitinib, Everolimus).
+  * `Level3_ClinicalTrials`: Fármacos en ensayos clínicos de fases avanzadas (APR-246).
+  * `Level4_Preclinical`: Plataformas experimentales in-silico (CRISPR-Cas9 HDR Gene Rescue).
+  * `Resistance`: Mutaciones secundarias que inducen resistencia clínica (*EGFR* p.T790M).
+* **Farmacodinamia en Células Vivas:**
+  * Incorporación de `DrugTherapy` en `CellTwinSimulator`.
+  * Preservación estricta de la estructura de 64 bytes de `CellAgent`:
+    ```cpp
+    struct alignas(64) CellAgent {
+        // ... cinemática y ciclo ...
+        bool is_cleaving{false};
+        bool drug_resistant{false}; // Nuevo flag sin alterar alineación
+        uint8_t pad[2];
+    };
+    static_assert(sizeof(CellAgent) == 64, "CellAgent must fit in a 64-byte cache line");
+    ```
+* **Reportes de Comité Molecular de Tumores (MTB):**
+  * Emisión automática de informes clínicos en Markdown y esquemas de datos JSON mediante `ReportGenerator`.
+
 

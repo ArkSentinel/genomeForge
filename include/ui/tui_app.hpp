@@ -7,6 +7,8 @@
 #include "moe/moe_engine.hpp"
 #include "crispr/crispr_engine.hpp"
 #include "digital_twin/cell_twin.hpp"
+#include "oncology/actionability_engine.hpp"
+#include "export/report_generator.hpp"
 
 #include <string>
 #include <vector>
@@ -22,7 +24,8 @@ enum class AppTab : int {
     MoeRouter = 3,
     CrisprStudio = 4,
     SystemLogs = 5,
-    DigitalTwin = 6
+    DigitalTwin = 6,
+    OncoTherapy = 7
 };
 
 class GenomeForgeApp {
@@ -39,6 +42,9 @@ public:
     // Exporta datasets en formato CSV
     void export_datasets();
 
+    // Exporta reporte de Comité Molecular de Tumores
+    void export_molecular_tumor_board_report(const std::string& filepath = "data/molecular_tumor_board_report.md");
+
     // Control de velocidad de simulación en tiempo real (1x a 32x)
     void increase_sim_speed();
     void decrease_sim_speed();
@@ -53,8 +59,13 @@ public:
     float get_petri_pan_x() const { return petri_pan_x_; }
     float get_petri_pan_y() const { return petri_pan_y_; }
 
+    // Controles farmacológicos in-silico
+    void administer_targeted_drug(genome::twin::DrugTherapy drug);
+    void washout_drugs();
+
 private:
     void init_simulation_state();
+    void refresh_onco_analysis();
     void add_log(const std::string& level, const std::string& message);
     void tick_simulation();
     void switch_locus_by_index(size_t index);
@@ -77,6 +88,8 @@ private:
     genome::moe::MoEEngine moe_engine_;
     genome::crispr::CrisprEngine crispr_engine_;
     genome::twin::CellTwinSimulator cell_twin_;
+    genome::oncology::ActionabilityEngine onco_engine_;
+    genome::oncology::ActionabilityAnalysis onco_analysis_;
 
     // Pestaña activa
     AppTab current_tab_{AppTab::Dashboard};

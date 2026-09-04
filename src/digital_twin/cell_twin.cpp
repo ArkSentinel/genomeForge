@@ -21,6 +21,10 @@ void CellTwinSimulator::initialize_dish(size_t initial_count, bool patient_has_t
     crispr_applied_ = false;
     uv_insult_active_ = false;
     uv_timer_ = 0.0f;
+    active_drug_ = DrugTherapy::None;
+    active_drug_name_ = "None (Vehicle Control)";
+    drug_dose_uM_ = 0.0f;
+    initial_transformed_baseline_ = 0.0f;
 
     std::uniform_real_distribution<float> dist_r(0.0f, dish_radius_ * 0.75f);
     std::uniform_real_distribution<float> dist_theta(0.0f, 2.0f * M_PI);
@@ -198,6 +202,42 @@ void CellTwinSimulator::adjust_population(int delta) {
             cells_.push_back(c);
         }
     }
+}
+
+void CellTwinSimulator::administer_drug(DrugTherapy drug, float dose_uM) {
+    active_drug_ = drug;
+    drug_dose_uM_ = dose_uM;
+    initial_transformed_baseline_ = std::max(1.0f, static_cast<float>(metrics_.transformed_count));
+
+    switch (drug) {
+        case DrugTherapy::TargetedTKI:
+            active_drug_name_ = "Osimertinib (3rd-Gen EGFR TKI)";
+            break;
+        case DrugTherapy::ParpInhibitor:
+            active_drug_name_ = "Olaparib (PARP Inhibitor / Synthetic Lethality)";
+            break;
+        case DrugTherapy::P53Reactivator:
+            active_drug_name_ = "APR-246 / Eprenetapopt (p53 Refolder)";
+            break;
+        case DrugTherapy::KrasInhibitor:
+            active_drug_name_ = "Sotorasib / AMG 510 (KRAS G12C Inhibitor)";
+            break;
+        case DrugTherapy::CytotoxicChemo:
+            active_drug_name_ = "Paclitaxel / Cisplatin (Cytotoxic Combination)";
+            break;
+        case DrugTherapy::None:
+        default:
+            active_drug_name_ = "None (Vehicle Control)";
+            drug_dose_uM_ = 0.0f;
+            break;
+    }
+}
+
+void CellTwinSimulator::washout_drugs() {
+    active_drug_ = DrugTherapy::None;
+    active_drug_name_ = "None (Vehicle Control)";
+    drug_dose_uM_ = 0.0f;
+    metrics_.tumor_regression_percent = 0.0f;
     compute_population_metrics();
 }
 
@@ -318,10 +358,71 @@ void CellTwinSimulator::update_cell_cycle(CellAgent& cell, float dt, std::vector
         }
     }
 
+    // -------------------------------------------------------------
+    // FARMACODINÁMICA Y RESPUESTA A TERAPIAS DIRIGIDAS IN-SILICO
+    // -------------------------------------------------------------
+    if (active_drug_ != DrugTherapy::None) {
+        float kill_rate = 0.0f;
+
+        if (cell.is_transformed) {
+            if (cell.drug_resistant) {
+                // Clones resistentes evaden la lisis del fármaco
+                kill_rate = 0.01f;
+            } else {
+                switch (active_drug_) {
+                    case DrugTherapy::TargetedTKI:
+                        // Inhibidor selectivo TKI (Osimertinib): lisis masiva en clones EGFR
+                        kill_rate = 0.58f * drug_dose_uM_;
+                        cell.r_score = std::max(0.12f, cell.r_score - dt * 0.4f);
+                        break;
+                    case DrugTherapy::ParpInhibitor:
+                        // Letalidad sintética (Olaparib): colapso en células con inestabilidad
+                        kill_rate = 0.65f * drug_dose_uM_;
+                        break;
+                    case DrugTherapy::P53Reactivator:
+                        // Reactivador conformacional APR-246: refolding de p53
+                        cell.p53_level = std::min(0.92f, cell.p53_level + dt * 0.5f);
+                        if (cell.p53_level > 0.70f) {
+                            kill_rate = 0.50f * drug_dose_uM_;
+                        }
+                        break;
+                    case DrugTherapy::KrasInhibitor:
+                        // Inhibidor covalente Sotorasib: bloqueo proliferativo
+                        kill_rate = 0.52f * drug_dose_uM_;
+                        break;
+                    case DrugTherapy::CytotoxicChemo:
+                        kill_rate = 0.45f * drug_dose_uM_;
+                        break;
+                    case DrugTherapy::None:
+                    default:
+                        break;
+                }
+            }
+
+            if (kill_rate > 0.0f) {
+                float prob_death = kill_rate * dt;
+                std::uniform_real_distribution<float> d_prob(0.0f, 1.0f);
+                if (d_prob(rng_) < prob_death) {
+                    cell.phase = CellCyclePhase::Apoptotic;
+                    cell.phenotype = CellPhenotype::ApoptoticCorpse;
+                    return;
+                }
+            }
+        } else if (active_drug_ == DrugTherapy::CytotoxicChemo && cell.phase == CellCyclePhase::M_Mitosis) {
+            // La quimioterapia clásica induce cierta toxicidad en células normales en división
+            std::uniform_real_distribution<float> d_chemo(0.0f, 1.0f);
+            if (d_chemo(rng_) < 0.06f * dt) {
+                cell.phase = CellCyclePhase::Apoptotic;
+                cell.phenotype = CellPhenotype::ApoptoticCorpse;
+                return;
+            }
+        }
+    }
+
     // Progresión del ciclo celular
     float speed_factor = 0.12f;
     if (cell.is_transformed) {
-        speed_factor = 0.35f; // Las células cancerosas proliferan 3 veces más rápido
+        speed_factor = (cell.drug_resistant) ? 0.30f : (active_drug_ != DrugTherapy::None ? 0.08f : 0.35f);
     } else if (cell.phenotype == CellPhenotype::PluripotentIPSC) {
         speed_factor = 0.20f; // iPSCs tienen fase G1 corta
     }
@@ -355,6 +456,14 @@ void CellTwinSimulator::update_cell_cycle(CellAgent& cell, float dt, std::vector
                     daughter.parent_id = cell.cell_id;
                     daughter.cycle_clock = 0.05f;
                     daughter.cleavage_state = 0;
+
+                    // Adquisición estocástica de resistencia secundaria al fármaco (2.5% probabilidad)
+                    if (active_drug_ != DrugTherapy::None && cell.is_transformed && !cell.drug_resistant) {
+                        std::uniform_real_distribution<float> d_res(0.0f, 1.0f);
+                        if (d_res(rng_) < 0.025f) {
+                            daughter.drug_resistant = 1;
+                        }
+                    }
 
                     // Pequeña dispersión espacial
                     float angle = (cell.cell_id % 360) * (M_PI / 180.0f);
@@ -480,6 +589,25 @@ void CellTwinSimulator::compute_population_metrics() {
     metrics_.dox_active = dox_active_;
     metrics_.crispr_applied = crispr_applied_;
     metrics_.uv_insult_active = uv_insult_active_;
+
+    // Telemetría farmacodinámica
+    metrics_.active_drug = active_drug_;
+    metrics_.active_drug_name = active_drug_name_;
+    metrics_.drug_dose_uM = drug_dose_uM_;
+
+    size_t resistant_count = 0;
+    for (const auto& c : cells_) {
+        if (c.drug_resistant) resistant_count++;
+    }
+    metrics_.drug_resistant_cells = resistant_count;
+
+    if (active_drug_ != DrugTherapy::None && initial_transformed_baseline_ > 0.0f) {
+        float current_transformed = static_cast<float>(metrics_.transformed_count);
+        float regression = (initial_transformed_baseline_ - current_transformed) / initial_transformed_baseline_ * 100.0f;
+        metrics_.tumor_regression_percent = std::clamp(regression, 0.0f, 100.0f);
+    } else {
+        metrics_.tumor_regression_percent = 0.0f;
+    }
 }
 
 } // namespace genome::twin

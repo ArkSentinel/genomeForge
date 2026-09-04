@@ -297,6 +297,55 @@ Este documento registra cronológicamente las decisiones de diseño, hitos de im
   * Verificación con `sample_patient.vcf`: 8 variantes, 6 patogénicas, 3 colisiones, R-Score = 0.8073 (rojo / rescate CRISPR activo).
   * Cero emojis verificado mediante script de escaneo unicode.
 
+---
+
+### Entrada #011: Plataforma de Oncología de Precisión, Farmacogenómica, Simulación In-Silico de Fármacos y Reportes de Comité Molecular de Tumores (MTB)
+* **Fecha:** 2026-09-04
+* **Objetivo:**
+  1. Transformar GenomeForge-TUI en una suite clínica completa para medicina personalizada y oncología de precisión, resolviendo la necesidad de traducir variantes patogénicas en decisiones terapéuticas fundamentadas.
+  2. Expandir el catálogo genómico de 8 a 12 loci críticos en GRCh38, incorporando los proto-oncogenes y dianas terapéuticas más relevantes en oncología clínica: *KRAS*, *BRAF*, *PIK3CA* y *ERBB2* (*HER2*).
+  3. Crear un motor de accionabilidad oncológica (`ActionabilityEngine`) estructurado bajo niveles de evidencia formal (Nivel 1 FDA/EMA, Nivel 2 Guías NCCN, Nivel 3 Ensayos Clínicos Fase II/III, Nivel 4 Preclínico / In-Silico y Marcadores de Resistencia).
+  4. Incorporar cinéticas de farmacodinamia in-silico en el Gemelo Digital (`CellTwinSimulator`): lisis clonal específica, letalidad sintética para deficiencias en recombinación homóloga (*BRCA1* con Olaparib/Talazoparib), reactivación conformacional de p53 mutante (*APR-246*) y modelado de emergencia estocástica de resistencia clonal (2.5% de mutagénesis adaptativa por mitosis bajo presión selectiva).
+  5. Diseñar un generador de informes de Comité Molecular de Tumores (`ReportGenerator`) con salida bimodal: informe clínico formateado en Markdown estructurado (`.md`) y exportación de datos de interoperabilidad en JSON (`.json`).
+  6. Integrar una nueva vista a pantalla completa en la TUI: Pestaña 8 `< 8: ONCO THERAPY >`, equipada con cuadrícula HUD de biomarcadores detectados, fármacos aprobados, advertencias farmacogenómicas, panel de control de infusión de fármacos y disparador de reportes.
+  7. Agregar la opción CLI `--report-onco [path]` para pipelines automatizados sin interfaz gráfica, junto con nuevos objetivos de Make (`make report`, `make test-onco`).
+  8. Generar paneles VCF clínicos de prueba: `sample_patient_oncology.vcf` (panel multiobjetivo con alteraciones en 8 genes diana) y `sample_patient_resistance.vcf` (caso clínico con mutación sensibilizante *EGFR* L858R más mutación de resistencia *gatekeeper* T790M).
+  9. Preservar la alineación estricta de memoria ARM64 (`alignas(64)` en `CellAgent`) y mantener la estricta política de CERO EMOJIS en todos los componentes.
+* **Componentes y Cambios Implementados:**
+  1. **Expansión del Catálogo Genómico (`include/vcf/locus_catalog.hpp` / `src/vcf/locus_catalog.cpp`):**
+     * Añadidos *KRAS* (Chr12), *BRAF* (Chr7), *PIK3CA* (Chr3) y *ERBB2* (Chr17) con coordenadas exactas GRCh38, anotaciones clínicas de ClinVar y URLs del Proyecto 1000 Genomas.
+     * Actualizadas las funciones de búsqueda y generación de slices sintéticos para dar soporte continuo a 12 loci.
+  2. **Motor de Accionabilidad Oncológica (`include/oncology/actionability_engine.hpp` / `src/oncology/actionability_engine.cpp`):**
+     * Base de datos curada de terapias dirigidas: Osimertinib, Gefitinib, Olaparib, Talazoparib, Sotorasib, Adagrasib, Dabrafenib + Trametinib, Alpelisib, Everolimus, Trastuzumab Deruxtecan (T-DXd), APR-246, CRISPR-Cas9 HDR y Pembrolizumab.
+     * Cálculo de Carga Mutacional Tumoral (TMB) y activación condicional de inmunoterapia agnóstica anti-PD-1 ($\text{TMB} \ge 10\text{ mut/Mb}$).
+     * Algoritmo de detección de resistencias secundarias: detección de *EGFR* p.T790M, contraindicación automática de TKIs de 1ª/2ª generación y recomendación obligatoria de Osimertinib.
+     * Deduplicación de prescripciones globales y cálculo de puntuación normalizada de accionabilidad clínica.
+  3. **Farmacodinamia en el Gemelo Digital (`include/digital_twin/cell_twin.hpp` / `src/digital_twin/cell_twin.cpp`):**
+     * Nuevo enumerador `DrugTherapy` (`None`, `TargetedTKI`, `ParpInhibitor`, `P53Reactivator`, `KrasInhibitor`, `CytotoxicChemo`).
+     * Nuevo campo `bool drug_resistant{false}` en el struct `CellAgent`. Verificación en tiempo de compilación con `static_assert(sizeof(CellAgent) == 64)` garantizando cero impacto en el empaquetado de memoria unificada ARM64.
+     * Métodos `administer_drug(DrugTherapy, float dose_uM)` y `washout_drugs()`.
+     * Integración de cinéticas de lisis tumoral selectiva, rescate de apoptosis mediado por p53 en células tratadas con APR-246, letalidad sintética frente a clones con alelos mutados de *BRCA1* e inducción estocástica de resistencia clonal (2.5% por mitosis en presencia de fármaco).
+     * Nuevas métricas en `PopulationMetrics`: `active_drug`, `drug_dose_uM`, `tumor_regression_percent`, `drug_resistant_cells`.
+  4. **Generador de Reportes MTB (`include/export/report_generator.hpp` / `src/export/report_generator.cpp`):**
+     * `generate_molecular_tumor_board_report`: Emite informe Markdown clínico estructurado en 6 secciones diagnósticas y terapéuticas.
+     * `generate_clinical_report_json`: Exporta esquema JSON normalizado conteniendo métricas diagnósticas, biomarcadores detectados, prescripciones farmacológicas, advertencias de resistencia y estado farmacodinámico del gemelo digital.
+  5. **Pestaña 8: ONCO THERAPY en la TUI (`include/ui/tui_app.hpp` / `src/ui/tui_app.cpp`):**
+     * Incorporación de `AppTab::OncoTherapy = 7` (pestañas 1 a 8).
+     * Renderizado Cyber-HUD dividido en: Cabecera con R-Score y TMB, columna izquierda con biomarcadores accionables y variantes conductoras, columna derecha con prescripción de terapias dirigidas ordenadas por nivel de evidencia FDA/NCCN, panel inferior con alertas de resistencia y tarjeta de telemetría de farmacodinamia in-silico.
+     * Atajos de teclado dedicados: `[1..8]` navegación directa, `[O]` generar reporte MTB, `[T]` inocular Osimertinib, `[P]` inocular Olaparib, `[K]` inocular APR-246, `[W]` lavado de fármacos.
+  6. **Integración CLI y Modo Headless (`src/main.cpp`, `Makefile`):**
+     * Nuevo flag `--report-onco <path>` para exportar reportes clínicos directamente desde la línea de comandos.
+     * Detección dinámica de nombre para generar automáticamente el artefacto JSON gemelo (`.json`).
+     * Nuevos objetivos en Makefile: `make report` y `make test-onco`.
+  7. **Ampliación de Telemetría IPC (`include/ipc/state_inspector.hpp` / `src/ipc/state_inspector.cpp`):**
+     * Inclusión del nodo `"oncology_actionability"` en `data/live_state.json` con conteos de biomarcadores, terapias aprobadas por la FDA, fármaco activo, dosis, porcentaje de regresión y recuento de clones resistentes.
+* **Validación y Pruebas:**
+  * Compilación limpia con Apple Clang C++20 (`make build`) con cero advertencias.
+  * Ejecución de `make test-onco` validando `sample_patient_oncology.vcf` (8 biomarcadores, 13 prescripciones, 9 FDA Nivel 1) y `sample_patient_resistance.vcf` (detección exacta de resistencia p.T790M y contraindicación de Gefitinib).
+  * Validación de `make inspect` mostrando el nodo de oncología serializado correctamente.
+  * Análisis de conformidad con script unicode certificando cero emojis en todo el repositorio.
+
+
 
 
 

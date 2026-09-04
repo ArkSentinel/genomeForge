@@ -94,6 +94,50 @@ static const std::vector<GenomicLocus> kLoci = {
         "Pluripotency factor cooperating with Oct4 to bind canonical composite motifs.",
         "CORE OSKM FACTOR: Heterodimerizes with Oct4 to repress somatic enhancer landscapes during reprogramming.",
         "https://s3.amazonaws.com/1000genomes/release/20130502/ALL.chr3.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz"
+    },
+    {
+        "KRAS",
+        "KRAS Proto-Oncogene, GTPase (MAPK Signaling)",
+        "chr12",
+        12,
+        25204789,
+        25250929,
+        "Driver mutations in codons 12/13/61 (e.g. G12C, G12D) drive lung, colorectal and pancreatic carcinomas.",
+        "PROLIFERATIVE ESCAPE: Hyperactive RAS/MAPK signaling impairs reprogramming checkpoint control and accelerates malignant outgrowth.",
+        "https://s3.amazonaws.com/1000genomes/release/20130502/ALL.chr12.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz"
+    },
+    {
+        "BRAF",
+        "B-Raf Proto-Oncogene, Serine/Threonine Kinase",
+        "chr7",
+        7,
+        140719327,
+        140924929,
+        "Driver V600E alteration stimulates constitutive MEK/ERK phosphorylation in melanoma and colorectal cancer.",
+        "ONCOGENIC SIGNALING: Strong MAPK drive overrides contact inhibition and promotes invasive colony behavior.",
+        "https://s3.amazonaws.com/1000genomes/release/20130502/ALL.chr7.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz"
+    },
+    {
+        "PIK3CA",
+        "Phosphatidylinositol-4,5-Bisphosphate 3-Kinase Catalytic Subunit Alpha",
+        "chr3",
+        3,
+        179148114,
+        179240093,
+        "Activating mutations (E542K, E545K, H1047R) stimulate AKT/mTOR survival pathway in breast and gynecologic cancers.",
+        "METABOLIC SWITCH: Promotes aerobic glycolysis and bypasses metabolic arrest during somatic reprogramming.",
+        "https://s3.amazonaws.com/1000genomes/release/20130502/ALL.chr3.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz"
+    },
+    {
+        "ERBB2",
+        "Erb-B2 Receptor Tyrosine Kinase 2 (HER2/neu)",
+        "chr17",
+        17,
+        39687914,
+        39730415,
+        "Amplification and activating mutations drive HER2-positive breast and gastric adenocarcinomas.",
+        "MITOGENIC OVERDRIVE: Accelerates cell cycle transit through G1/S, potentiating aneuploidy under OSKM stress.",
+        "https://s3.amazonaws.com/1000genomes/release/20130502/ALL.chr17.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz"
     }
 };
 
@@ -170,6 +214,14 @@ std::string LocusCatalog::generate_slice_vcf(const GenomicLocus& locus, const st
     } else if (locus.gene_symbol == "SOX2") {
         ss << "chr3\t181712400\trs11915622\tT\tC\t580\tPASS\tGENE=SOX2;IMPACT=MODIFIER;CLNSIG=Benign;AF=0.180;DP=56\tGT:DP:GQ\t0/1:56:90\n";
         ss << "chr3\t181713800\trs7631358\tA\tG\t720\tPASS\tGENE=SOX2;IMPACT=MODIFIER;CLNSIG=Benign;AF=0.310;DP=60\tGT:DP:GQ\t0/1:60:92\n";
+    } else if (locus.gene_symbol == "KRAS") {
+        ss << "chr12\t25225600\trs121913529\tC\tT\t640\tPASS\tGENE=KRAS;IMPACT=MODIFIER;CLNSIG=Benign;AF=0.125;DP=54\tGT:DP:GQ\t0/1:54:92\n";
+    } else if (locus.gene_symbol == "BRAF") {
+        ss << "chr7\t140753300\trs113488022\tA\tG\t510\tPASS\tGENE=BRAF;IMPACT=MODIFIER;CLNSIG=Benign;AF=0.190;DP=46\tGT:DP:GQ\t0/1:46:88\n";
+    } else if (locus.gene_symbol == "PIK3CA") {
+        ss << "chr3\t179218200\trs2699887\tT\tC\t710\tPASS\tGENE=PIK3CA;IMPACT=LOW;CLNSIG=Benign;AF=0.340;DP=62\tGT:DP:GQ\t0/1:62:94\n";
+    } else if (locus.gene_symbol == "ERBB2") {
+        ss << "chr17\t39724100\trs1136201\tA\tG\t840\tPASS\tGENE=ERBB2;IMPACT=MODERATE;CLNSIG=Benign;AF=0.230;DP=58\tGT:DP:GQ\t1/1:58:99\n";
     }
 
     return ss.str();

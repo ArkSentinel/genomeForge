@@ -1,0 +1,21 @@
+##fileformat=VCFv4.2
+##fileDate=20260904
+##source=GenomeForge_Oncology_Comprehensive_NGS_Panel
+##reference=GRCh38
+##INFO=<ID=GENE,Number=1,Type=String,Description="Target Gene Symbol">
+##INFO=<ID=IMPACT,Number=1,Type=String,Description="Predicted functional consequence">
+##INFO=<ID=CLNSIG,Number=1,Type=String,Description="ClinVar clinical significance">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Global allele frequency">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Sequencing read depth">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Filtered read depth">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype quality score">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	PATIENT_ONCO_001
+chr7	55181378	rs121434568	T	G	999	PASS	GENE=EGFR;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.0002;DP=180	GT:DP:GQ	0/1:180:99
+chr17	43071077	rs80357713	T	G	850	PASS	GENE=BRCA1;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.0001;DP=145	GT:DP:GQ	0/1:145:99
+chr17	7675088	rs28934578	C	T	999	PASS	GENE=TP53;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.0003;DP=210	GT:DP:GQ	0/1:210:99
+chr12	25225600	rs121913529	C	A	920	PASS	GENE=KRAS;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.0005;DP=160	GT:DP:GQ	0/1:160:99
+chr7	140753336	rs113488022	T	A	950	PASS	GENE=BRAF;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.0002;DP=195	GT:DP:GQ	0/1:195:99
+chr10	87864000	rs121909224	G	A	780	PASS	GENE=PTEN;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.0004;DP=130	GT:DP:GQ	0/1:130:95
+chr3	179218300	rs121913279	G	A	810	PASS	GENE=PIK3CA;IMPACT=HIGH;CLNSIG=Pathogenic;AF=0.0003;DP=150	GT:DP:GQ	0/1:150:98
+chr17	39724200	rs1057519732	C	T	760	PASS	GENE=ERBB2;IMPACT=MODERATE;CLNSIG=Pathogenic;AF=0.0001;DP=140	GT:DP:GQ	0/1:140:90

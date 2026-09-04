@@ -94,9 +94,19 @@ void GenomeForgeApp::switch_locus_by_index(size_t index) {
         target_sequence_window_ = "ATGGCGGGACACCTGGCTTCGGATTTCGCCTTCTCGCCCCCTCCAGGTGGTGGAGGTGATGGGCCAGGGGG";
     } else if (locus->gene_symbol == "SOX2") {
         target_sequence_window_ = "ATGTACAACATGATGGAGACGGAGCTGAAGCCGCCGGGCCCGCAGCAAACTTCGGGGGGCGGCGGCGGCAA";
+    } else if (locus->gene_symbol == "KRAS") {
+        target_sequence_window_ = "ATGACTGAATATAAACTTGTGGTAGTTGGAGCTGGTGGCGTAGGCAAGAGTGCCTTGACGATACAGCTAAT";
+    } else if (locus->gene_symbol == "BRAF") {
+        target_sequence_window_ = "ATGGCGGCGCTGAGCGGTGGCGGTGGTGGCGGCGCGGAGCCCGGCCAGGCTCTGTTCAACGGGGACATGGAG";
+    } else if (locus->gene_symbol == "PIK3CA") {
+        target_sequence_window_ = "ATGCCTCCACGACCATCATCAGGTGAACTGTGGGGCATCCACTTGATGCCCCCAAGAATCCTAGTAGAATGT";
+    } else if (locus->gene_symbol == "ERBB2") {
+        target_sequence_window_ = "ATGGAGCTGGCGGCCTTGTGCCGCTGGGGGCTCCTCCTCGCCCTCTTGCCCCCCGGAGCCGCGAGCACCCAA";
     }
     crispr_candidates_ = crispr_engine_.design_guides(target_sequence_window_, 20);
     crispr_applied_ = false;
+
+    refresh_onco_analysis();
 
     add_log("LOCUS", "1000 Genomes focus: " + locus->gene_symbol + " (" + locus->chromosome + ":" + 
                      std::to_string(locus->start_pos) + "-" + std::to_string(locus->end_pos) + ")");
@@ -128,6 +138,7 @@ void GenomeForgeApp::toggle_sample_mode() {
         float burden = static_cast<float>(vcf_parser_.pathogenic_count()) / 
                        std::max(1.0f, static_cast<float>(vcf_parser_.total_variants()));
         yamanaka_sim_.set_mutational_context(tp53_mut, cdkn2a_mut, burden);
+        refresh_onco_analysis();
 
         if (healthy_reference_mode_) {
             add_log("SAMPLE", "Switched to 1000 Genomes Healthy Reference (HG00096): 16 natural polymorphisms, 0 pathogenic collisions.");
@@ -137,6 +148,43 @@ void GenomeForgeApp::toggle_sample_mode() {
     } else {
         add_log("ERROR", "Failed to switch sample to: " + vcf_path_);
     }
+}
+
+void GenomeForgeApp::refresh_onco_analysis() {
+    onco_analysis_ = onco_engine_.analyze_variants(vcf_parser_.get_variants());
+}
+
+void GenomeForgeApp::export_molecular_tumor_board_report(const std::string& filepath) {
+    refresh_onco_analysis();
+    std::string sample_id = healthy_reference_mode_ ? "HG00096_HEALTHY_CONTROL" : "PATIENT_ONCOLOGY_SAMPLE";
+    bool ok = genome::exp::ReportGenerator::generate_molecular_tumor_board_report(
+        filepath, sample_id, vcf_parser_, onco_analysis_, crispr_candidates_, cell_twin_, yamanaka_sim_
+    );
+    std::string json_path = filepath;
+    if (json_path.size() >= 3 && json_path.substr(json_path.size() - 3) == ".md") {
+        json_path = json_path.substr(0, json_path.size() - 3) + ".json";
+    } else {
+        json_path += ".json";
+    }
+    genome::exp::ReportGenerator::generate_clinical_report_json(
+        json_path, sample_id, vcf_parser_, onco_analysis_, crispr_candidates_, cell_twin_, yamanaka_sim_
+    );
+    if (ok) {
+        add_log("REPORT", "Molecular Tumor Board Report exported to: " + filepath);
+        add_log("REPORT", "JSON clinical export saved to: " + json_path);
+    } else {
+        add_log("ERROR", "Failed to export MTB report to: " + filepath);
+    }
+}
+
+void GenomeForgeApp::administer_targeted_drug(genome::twin::DrugTherapy drug) {
+    cell_twin_.administer_drug(drug, 1.50f);
+    add_log("DRUG", "Inoculated in-silico therapy: " + cell_twin_.get_active_drug_name() + " (1.50 uM)");
+}
+
+void GenomeForgeApp::washout_drugs() {
+    cell_twin_.washout_drugs();
+    add_log("WASHOUT", "Culture washed. Active drug cleared from Petri dish.");
 }
 
 void GenomeForgeApp::init_simulation_state() {
@@ -188,6 +236,11 @@ void GenomeForgeApp::init_simulation_state() {
     // 5. Inicializar Gemelo Digital de Células Vivas
     cell_twin_.initialize_dish(180, tp53_mut);
     add_log("INFO", "Living Cell Digital Twin initialized: 180 cell agents in virtual Petri dish with Metal UMA physics.");
+
+    // 6. Evaluar panel de farmacogenómica y oncología de precisión
+    refresh_onco_analysis();
+    add_log("INFO", "Oncology Actionability Engine evaluated " + std::to_string(onco_analysis_.detected_biomarkers.size()) + 
+                    " actionable drivers, matched " + std::to_string(onco_analysis_.all_recommended_drugs.size()) + " targeted therapies.");
 }
 
 void GenomeForgeApp::increase_sim_speed() {
@@ -260,7 +313,9 @@ void GenomeForgeApp::save_live_state() {
         sim_speed_multiplier_,
         petri_zoom_,
         petri_pan_x_,
-        petri_pan_y_
+        petri_pan_y_,
+        onco_analysis_.detected_biomarkers.size(),
+        onco_analysis_.level1_count
     );
 }
 
@@ -299,7 +354,9 @@ int GenomeForgeApp::run_headless(size_t max_ticks, bool export_csv, const std::s
         sim_speed_multiplier_,
         petri_zoom_,
         petri_pan_x_,
-        petri_pan_y_
+        petri_pan_y_,
+        onco_analysis_.detected_biomarkers.size(),
+        onco_analysis_.level1_count
     );
 
     std::cout << "[+] Telemetry snapshot saved to: " << snapshot_path << "\n";
@@ -318,6 +375,8 @@ int GenomeForgeApp::run_headless(size_t max_ticks, bool export_csv, const std::s
               << "  Malignant Clones:    " << tm.transformed_count << "\n"
               << "  Culture Confluence:  " << std::fixed << std::setprecision(1) << (tm.confluence * 100.0f) << "%\n"
               << "  Average R-Score:     " << std::setprecision(4) << tm.average_r_score << "\n"
+              << "  Actionable Drivers:  " << onco_analysis_.detected_biomarkers.size() << "\n"
+              << "  Matched Therapies:   " << onco_analysis_.all_recommended_drugs.size() << " (Level 1 FDA: " << onco_analysis_.level1_count << ")\n"
               << "--------------------------\n";
 
     return 0;
@@ -423,6 +482,8 @@ int GenomeForgeApp::run() {
             make_tab_button(AppTab::SystemLogs, "SYSTEM & LOGS", "6"),
             separator(),
             make_tab_button(AppTab::DigitalTwin, "DIGITAL TWIN", "7"),
+            separator(),
+            make_tab_button(AppTab::OncoTherapy, "ONCO THERAPY", "8"),
         }) | border;
 
         // 3. VISTAS DEDICADAS POR PESTAÑA
@@ -1226,10 +1287,24 @@ int GenomeForgeApp::run() {
                          (t_metrics.average_r_score > 0.5f ? color(Color::RedLight) : color(Color::Green))
                 }),
                 separator(),
+                text("◈ TERAPIA DIRIGIDA IN-SILICO") | bold | color(Color::GreenLight),
+                separator(),
+                hbox({ text("Fármaco Activo: ") | color(Color::GrayLight), text(t_metrics.active_drug_name) | bold | color(Color::CyanLight) }),
+                hbox({ text("Regresión Tumoral: ") | color(Color::GrayLight), text(std::to_string(static_cast<int>(t_metrics.tumor_regression_percent)) + "%") | bold | color(Color::GreenLight), text("  Dosis: ") | color(Color::GrayLight), text(std::to_string(t_metrics.drug_dose_uM).substr(0, 4) + " uM") | color(Color::White) }),
+                hbox({ text("Clones Resistentes: ") | color(Color::GrayLight), text(std::to_string(t_metrics.drug_resistant_cells)) | bold | (t_metrics.drug_resistant_cells > 0 ? color(Color::RedLight) : color(Color::GreenLight)) }),
+                hbox({
+                    text("Acciones: ") | color(Color::GrayLight),
+                    text("[T] ") | bold | color(Color::CyanLight), text("TKI  ") | color(Color::White),
+                    text("[P] ") | bold | color(Color::MagentaLight), text("PARP  ") | color(Color::White),
+                    text("[K] ") | bold | color(Color::YellowLight), text("p53  ") | color(Color::White),
+                    text("[W] ") | bold | color(Color::YellowLight), text("Lavar") | color(Color::White),
+                }),
+                separator(),
                 text("◈ CONTROLES BIOLÓGICOS Y EXPORTACIÓN") | bold | color(Color::Cyan),
                 separator(),
                 vbox({
                     text("[X] EXPORTAR DATASETS CSV (Censo/Células/VCF)") | bold | color(Color::GreenLight),
+                    text("[O] EXPORTAR REPORTE COMITÉ MOLECULAR (MTB)") | bold | color(Color::MagentaLight),
                     text("[D] Inyectar/Suspender Doxiciclina (OSKM)") | bold | color(Color::Yellow),
                     text("[C] Terapia CRISPR-Cas9 in-situ (Rescate TP53)") | bold | color(Color::Cyan),
                     text("[U] Estrés Genotóxico (Irradiación UV)") | bold | color(Color::Magenta),
@@ -1245,20 +1320,133 @@ int GenomeForgeApp::run() {
             }) | flex;
         }
 
+        // -------------------------------------------------------------
+        // TAB 8: ONCO THERAPY (PHARMACOGENOMICS & MOLECULAR TUMOR BOARD)
+        // -------------------------------------------------------------
+        else if (current_tab_ == AppTab::OncoTherapy) {
+            refresh_onco_analysis();
+
+            // 1. Cabecera Cyber-HUD
+            auto header_box = hbox({
+                vbox({
+                    text("⟦ COMITÉ MOLECULAR DE TUMORES & FARMACOGENÓMICA DIRIGIDA ⟧") | bold | color(Color::CyanLight),
+                    text("⟨ Emparejamiento de Biomarcadores Genómicos (OncoKB / FDA / NCCN) con Eficacia In-Silico ⟩") | color(Color::GrayLight),
+                }) | flex,
+                separator(),
+                vbox({
+                    hbox({ text("Biomarcadores Detectados: ") | color(Color::GrayLight), text(std::to_string(onco_analysis_.detected_biomarkers.size())) | bold | color(Color::Yellow) }),
+                    hbox({ text("Fármacos Aprobados FDA:   ") | color(Color::GrayLight), text(std::to_string(onco_analysis_.level1_count)) | bold | color(Color::GreenLight) }),
+                }),
+                separator(),
+                vbox({
+                    hbox({ text("Carga Mutacional (TMB):   ") | color(Color::GrayLight), text(std::to_string(static_cast<int>(onco_analysis_.tumor_mutational_burden)) + " mut/Mb") | bold | (onco_analysis_.high_tmb ? color(Color::RedLight) : color(Color::Cyan)) }),
+                    hbox({ text("Puntaje Accionabilidad:   ") | color(Color::GrayLight), text(std::to_string(static_cast<int>(onco_analysis_.total_actionability_score * 100.0f)) + "%") | bold | color(Color::CyanLight) }),
+                })
+            }) | border;
+
+            // 2. Columna Izquierda: Biomarcadores Detectados en el Genoma
+            Elements biomarker_elements;
+            biomarker_elements.push_back(text("◈ BIOMARCADORES Y DIANAS ONCOLÓGICAS") | bold | color(Color::Yellow));
+            biomarker_elements.push_back(separator());
+
+            if (onco_analysis_.detected_biomarkers.empty()) {
+                biomarker_elements.push_back(text("[+] 0 mutaciones conductoras detectadas en los loci diana.") | color(Color::Green));
+                biomarker_elements.push_back(text("    Perfil genómico compatible con control sano.") | color(Color::GrayLight));
+            } else {
+                for (size_t i = 0; i < onco_analysis_.detected_biomarkers.size(); ++i) {
+                    const auto& b = onco_analysis_.detected_biomarkers[i];
+                    biomarker_elements.push_back(
+                        vbox({
+                            hbox({
+                                text(b.is_resistance_marker ? "[RESISTENCIA] " : "[DRIVER] ") | (b.is_resistance_marker ? color(Color::RedLight) : color(Color::YellowLight)),
+                                text(b.gene_symbol + " ") | bold | color(Color::CyanLight),
+                                text(b.variant_desc) | bold | color(Color::White)
+                            }),
+                            text("  Locus: Chr " + std::to_string(b.genomic_pos) + " | " + b.consequence) | color(Color::GrayLight),
+                        })
+                    );
+                    biomarker_elements.push_back(separator());
+                }
+            }
+            auto biomarkers_panel = vbox(std::move(biomarker_elements)) | border | size(WIDTH, GREATER_THAN, 42);
+
+            // 3. Columna Derecha: Prescripción de Fármacos Dirigidos
+            Elements drug_elements;
+            drug_elements.push_back(text("◈ TERAPIAS DIRIGIDAS EMPAREJADAS (NIVEL DE EVIDENCIA CLÍNICA)") | bold | color(Color::CyanLight));
+            drug_elements.push_back(separator());
+
+            if (onco_analysis_.all_recommended_drugs.empty()) {
+                drug_elements.push_back(text("No se requieren terapias dirigidas citotóxicas para este perfil.") | color(Color::Green));
+            } else {
+                for (size_t i = 0; i < onco_analysis_.all_recommended_drugs.size(); ++i) {
+                    const auto& d = onco_analysis_.all_recommended_drugs[i];
+                    Color badge_col = (d.evidence_level == oncology::EvidenceLevel::Level1_FDA_Approved) ? Color::GreenLight :
+                                      (d.evidence_level == oncology::EvidenceLevel::Level2_StandardOfCare) ? Color::CyanLight : Color::Yellow;
+                    
+                    drug_elements.push_back(
+                        hbox({
+                            text(oncology::ActionabilityEngine::evidence_level_badge(d.evidence_level) + " ") | bold | color(badge_col),
+                            text(d.drug_name) | bold | color(Color::White),
+                            text(" (" + d.drug_class + ")") | color(Color::GrayLight),
+                            filler(),
+                            text("Diana: " + d.target_gene + " | Eficacia: " + std::to_string(static_cast<int>(d.tumor_regression_efficacy * 100)) + "%") | color(Color::Cyan)
+                        })
+                    );
+                    drug_elements.push_back(
+                        text("  Mecanismo: " + d.mechanism_of_action + " [" + d.clinical_trial_or_approval + "]") | color(Color::GrayLight)
+                    );
+                    drug_elements.push_back(
+                        text("  Pauta: " + d.recommended_dose + (d.synthetic_lethality_score > 0.5f ? " | LETALIDAD SINTÉTICA ACTIVA" : "")) | color(Color::MagentaLight)
+                    );
+                    drug_elements.push_back(separator());
+                }
+            }
+
+            // Advertencias de resistencia
+            if (!onco_analysis_.resistance_warnings.empty()) {
+                drug_elements.push_back(text("◈ ALERTAS FARMACOGENÓMICAS DE RESISTENCIA") | bold | color(Color::RedLight));
+                for (const auto& w : onco_analysis_.resistance_warnings) {
+                    drug_elements.push_back(text("[!] " + w) | color(Color::RedLight));
+                }
+                drug_elements.push_back(separator());
+            }
+
+            // Panel de Control Farmacodinámico en el Gemelo Digital
+            auto pharmacodynamics_controls = hbox({
+                text("⟦ FARMACODINÁMICA IN-SILICO (DIGITAL TWIN) ⟧ ") | bold | color(Color::Yellow),
+                text("Fármaco Activo: ") | color(Color::GrayLight),
+                text(cell_twin_.get_active_drug_name()) | bold | color(Color::CyanLight),
+                text(" | Regresión: ") | color(Color::GrayLight),
+                text(std::to_string(static_cast<int>(cell_twin_.get_tumor_regression_percent())) + "%") | bold | color(Color::GreenLight),
+                text(" | Clones Resistentes: ") | color(Color::GrayLight),
+                text(std::to_string(cell_twin_.get_metrics().drug_resistant_cells)) | bold | (cell_twin_.get_metrics().drug_resistant_cells > 0 ? color(Color::RedLight) : color(Color::GreenLight)),
+                filler(),
+                text("[T] TKI  [P] PARP  [K] p53-Reactivator  [W] Lavar  [O] Reporte MTB") | bold | color(Color::Black) | bgcolor(Color::CyanLight)
+            });
+
+            auto drugs_panel = vbox(std::move(drug_elements)) | border | flex;
+
+            active_view = vbox({
+                header_box,
+                hbox({ biomarkers_panel, drugs_panel }) | flex,
+                pharmacodynamics_controls | border
+            });
+        }
+
         // 4. FOOTER
         auto footer = hbox({
             text(" ⟦ ATAJOS ⟧ ") | bold | color(Color::Cyan),
-            text("[1..7] ") | bold | color(Color::White), text("Pestañas  ") | color(Color::GrayLight),
+            text("[1..8] ") | bold | color(Color::White), text("Pestañas  ") | color(Color::GrayLight),
             text("[Tab] ") | bold | color(Color::White), text("Ciclar  ") | color(Color::GrayLight),
             text("[M] ") | bold | color(Color::GreenLight), text("Muestra  ") | color(Color::GrayLight),
             text("[L] ") | bold | color(Color::Yellow), text("Locus  ") | color(Color::GrayLight),
+            text("[O] ") | bold | color(Color::MagentaLight), text("Reporte MTB  ") | color(Color::GrayLight),
+            text("[T] ") | bold | color(Color::CyanLight), text("TKI  ") | color(Color::GrayLight),
+            text("[P] ") | bold | color(Color::YellowLight), text("PARP  ") | color(Color::GrayLight),
             text("[ < / > ] ") | bold | color(Color::MagentaLight), text("Vel Real  ") | color(Color::GrayLight),
             text("[Z / z / 0] ") | bold | color(Color::Cyan), text("Zoom Petri  ") | color(Color::GrayLight),
             text("[ [ / ] ] ") | bold | color(Color::YellowLight), text("Time Warp  ") | color(Color::GrayLight),
             text("[X] ") | bold | color(Color::GreenLight), text("CSV  ") | color(Color::GrayLight),
-            text("[D] ") | bold | color(Color::Yellow), text("OSKM  ") | color(Color::GrayLight),
-            text("[C] ") | bold | color(Color::Cyan), text("CRISPR  ") | color(Color::GrayLight),
-            text("[U] ") | bold | color(Color::RedLight), text("UV  ") | color(Color::GrayLight),
             text("[Espacio] ") | bold | color(Color::White), text("Pausa  ") | color(Color::GrayLight),
             text("[Q] ") | bold | color(Color::Red), text("Salir") | color(Color::GrayLight),
         }) | border;
@@ -1285,10 +1473,41 @@ int GenomeForgeApp::run() {
         if (event == Event::Character('5')) { current_tab_ = AppTab::CrisprStudio; return true; }
         if (event == Event::Character('6')) { current_tab_ = AppTab::SystemLogs; return true; }
         if (event == Event::Character('7')) { current_tab_ = AppTab::DigitalTwin; return true; }
+        if (event == Event::Character('8')) { current_tab_ = AppTab::OncoTherapy; return true; }
 
         if (event == Event::Tab) {
-            int next_tab = (static_cast<int>(current_tab_) + 1) % 7;
+            int next_tab = (static_cast<int>(current_tab_) + 1) % 8;
             current_tab_ = static_cast<AppTab>(next_tab);
+            return true;
+        }
+
+        // Exportar Reporte de Comité Molecular de Tumores (MTB)
+        if (event == Event::Character('o') || event == Event::Character('O')) {
+            export_molecular_tumor_board_report();
+            return true;
+        }
+
+        // Inocular terapia dirigida TKI
+        if (event == Event::Character('t') || event == Event::Character('T')) {
+            administer_targeted_drug(genome::twin::DrugTherapy::TargetedTKI);
+            return true;
+        }
+
+        // Inocular terapia por letalidad sintética (Inhibidor PARP)
+        if (event == Event::Character('p') || event == Event::Character('P')) {
+            administer_targeted_drug(genome::twin::DrugTherapy::ParpInhibitor);
+            return true;
+        }
+
+        // Inocular reactivador conformacional p53 (APR-246)
+        if (event == Event::Character('k') || event == Event::Character('K')) {
+            administer_targeted_drug(genome::twin::DrugTherapy::P53Reactivator);
+            return true;
+        }
+
+        // Lavado / Washout de fármacos en Tab 8
+        if (current_tab_ == AppTab::OncoTherapy && (event == Event::Character('w') || event == Event::Character('W'))) {
+            washout_drugs();
             return true;
         }
 
