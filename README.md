@@ -522,12 +522,17 @@ Opciones Principales:
 
 ---
 
-## 10. Tabla de Atajos de Teclado
+## 10. Tabla de Atajos de Teclado y Ratón
 
-| Tecla / Atajo | Función y Efecto Biológico |
+| Entrada / Control | Función y Efecto Biológico |
 | :---: | :--- |
-| **`1` .. `8`** | Salto directo a cualquiera de las 8 pestañas del Cyber-HUD (incluyendo Onco Therapy). |
-| **`Tab`** | Ciclar secuencialmente a la siguiente pestaña (módulo 8). |
+| **`1` .. `9`** | Salto directo a cualquiera de las 9 pestañas del Cyber-HUD (incluyendo Workflows). |
+| **`Clic Izquierdo`** | Selección nativa de pestañas, botones de acción, protocolos clínicos, muestras VCF y variantes. |
+| **`Rueda Ratón`** | Desplazamiento vertical en explorador modal VCF, tablas de variantes y zoom óptico del microscopio. |
+| **`Tab`** | Ciclar secuencialmente a la siguiente pestaña (módulo 9). |
+| **`F`** | **Explorador Modal VCF:** Abre el selector interactivo de archivos genómicos para cambio en caliente. |
+| **`Enter` (en Tab 9)** | **Ejecutar Workflow:** Inicia la ejecución automatizada completa del protocolo clínico activo. |
+| **`S` (en Tab 9)** | **Paso a Paso:** Avanza un único paso en el pipeline del protocolo clínico. |
 | **`<` / `,`** | **Disminuir Velocidad Real:** Reduce los sub-pasos del motor físico/ODE ($32\times \to 1\times$, $640\text{ Hz} \to 20\text{ Hz}$). |
 | **`>` / `.`** | **Aumentar Velocidad Real:** Acelera los sub-pasos del motor físico/ODE ($1\times \to 32\times$, $20\text{ Hz} \to 640\text{ Hz}$). |
 | **`Z`** | **Zoom In Microscopio:** Incrementa el aumento óptico de la placa de Petri ($1.0\times \to 8.0\times$). |
@@ -548,9 +553,9 @@ Opciones Principales:
 | **`C`** | **CRISPR In-Situ:** Administra terapia génica en la placa de Petri para corregir mutaciones de *TP53*. |
 | **`U`** | **Estrés Genotóxico:** Dispara un pulso de radiación UV para poner a prueba los puntos de control. |
 | **`+` / `-`** | Inocular / aspirar células del cultivo virtual de la placa de Petri (±25 células). |
-| **`↑` / `↓` o `k` / `j`** | Navegar verticalmente por listas de variantes VCF o candidatos gRNA CRISPR (Tabs 2 y 5). |
+| **`↑` / `↓` o `k` / `j`** | Navegar verticalmente por listas de variantes VCF, candidatos gRNA CRISPR o protocolos. |
 | **`E`** | **Edición CRISPR (HDR):** Aplica corrección in-silico por homología sobre la variante VCF seleccionada. |
-| **`R`** | **Reset Basal:** Restaura el cultivo celular (en Tab 7) o reinyecta la mutación en el genoma original. |
+| **`R`** | **Reset:** Reinicia el cultivo (en Tab 7), el protocolo activo (en Tab 9) o restaura la muestra original. |
 | **`Espacio`** | Pausar o reanudar el avance temporal de los motores biológicos y la biofísica. |
 | **`Q` o `Esc`** | Salida limpia del programa. |
 
@@ -560,6 +565,14 @@ Opciones Principales:
 
 * [`docs/SPECS.md`](docs/SPECS.md): Especificación técnica formal, structs alineados a caché ARM64, derivaciones matemáticas de ODEs, kernels de Metal y arquitectura del sistema.
 * [`docs/BITACORA.md`](docs/BITACORA.md): Bitácora cronológica viva de ingeniería con todos los registros de desarrollo (*devlog*), decisiones técnicas y benchmarks de rendimiento.
+
+---
+
+## 12. Licencia
+
+Este proyecto está distribuido bajo la licencia de código abierto **MIT License**. Consulte el archivo [`LICENSE`](LICENSE) para obtener más detalles.
+
+Copyright (c) 2026 ArkSentinel. Todos los derechos reservados.
 
 
 
